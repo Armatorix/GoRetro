@@ -32,6 +32,10 @@ services:
       - OAUTH2_PROXY_COOKIE_SECRET=1234123412341234
       - OAUTH2_PROXY_EMAIL_DOMAINS=*
 
+      # Headers Configuration
+      - OAUTH2_PROXY_PASS_USER_HEADERS=true
+      - OAUTH2_PROXY_SET_XAUTHREQUEST=true
+
     depends_on:
       - app
       - dex

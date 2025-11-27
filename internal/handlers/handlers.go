@@ -40,18 +40,30 @@ func NewHandler(store *models.RoomStore, hub *websocket.Hub) *Handler {
 // getUserFromRequest extracts user information from OAuth2-proxy headers
 func getUserFromRequest(c echo.Context) models.User {
 	email := c.Request().Header.Get("X-Forwarded-Email")
+	if email == "" {
+		email = c.Request().Header.Get("X-Auth-Request-Email")
+	}
+
 	name := c.Request().Header.Get("X-Forwarded-Preferred-Username")
+	if name == "" {
+		name = c.Request().Header.Get("X-Auth-Request-Preferred-Username")
+	}
+
 	userID := c.Request().Header.Get("X-Forwarded-User")
+	if userID == "" {
+		userID = c.Request().Header.Get("X-Auth-Request-User")
+	}
 
 	// Fallback for development without OAuth2-proxy
 	if email == "" {
 		email = "dev@example.com"
 	}
-	if name == "" {
-		name = "Developer"
-	}
 	if userID == "" {
 		userID = email
+	}
+	if name == "" {
+		// If name is missing, try to use the part before @ in email, or userID
+		name = userID
 	}
 
 	return models.User{
