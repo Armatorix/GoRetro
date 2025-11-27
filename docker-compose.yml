@@ -1,12 +1,28 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: goretro-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=goretro
+      - POSTGRES_USER=goretro
+      - POSTGRES_PASSWORD=goretro
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   app:
     build: .
     container_name: goretro-app
     restart: unless-stopped
     environment:
       - PORT=8080
+      - DATABASE_URL=postgres://goretro:goretro@postgres:5432/goretro?sslmode=disable
+    depends_on:
+      - postgres
 
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
@@ -50,3 +66,6 @@ services:
     volumes:
       - ./dex/config.yaml:/config.yaml
     command: ['dex', 'serve', '/config.yaml']
+
+volumes:
+  postgres_data:

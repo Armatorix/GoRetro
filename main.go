@@ -1,16 +1,20 @@
 package main
 
 import (
+	"database/sql"
 	"embed"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/Armatorix/GoRetro/internal/handlers"
 	"github.com/Armatorix/GoRetro/internal/models"
 	"github.com/Armatorix/GoRetro/internal/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	_ "github.com/lib/pq"
 )
 
 //go:embed templates/*.html
@@ -27,8 +31,36 @@ func (t *TemplateRenderer) Render(w io.Writer, name string, data any, c echo.Con
 }
 
 func main() {
+	// Get database URL from environment
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://goretro:goretro@localhost:5432/goretro?sslmode=disable"
+	}
+
+	// Connect to database
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Ping database to verify connection
+	if err := db.Ping(); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+
+	log.Println("Connected to database successfully")
+
 	// Initialize store and hub
-	store := models.NewRoomStore()
+	store := models.NewRoomStore(db)
+
+	// Initialize database schema
+	if err := store.InitSchema(); err != nil {
+		log.Fatalf("Failed to initialize database schema: %v", err)
+	}
+
+	log.Println("Database schema initialized")
+
 	hub := websocket.NewHub(store)
 	go hub.Run()
 
@@ -49,7 +81,6 @@ func main() {
 
 	// Routes
 	e.GET("/", h.Index)
-
 	// Room routes
 	e.POST("/rooms", h.CreateRoom)
 	e.GET("/rooms", h.ListRooms)

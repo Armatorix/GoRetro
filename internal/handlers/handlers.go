@@ -119,7 +119,9 @@ func (h *Handler) CreateRoom(c echo.Context) error {
 	room := models.NewRoom(roomID, req.Name, user.ID, req.VotesPerUser)
 	room.AddParticipant(user, models.RoleOwner)
 
-	h.store.Create(room)
+	if err := h.store.Create(room); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create room"})
+	}
 
 	// Check if it's an AJAX request or form submission
 	if c.Request().Header.Get("Accept") == "application/json" {
@@ -169,6 +171,10 @@ func (h *Handler) GetRoom(c echo.Context) error {
 	// Add user as participant if not already
 	if _, exists := room.GetParticipant(user.ID); !exists {
 		room.AddParticipant(user, models.RoleParticipant)
+		// Update room in store
+		if err := h.store.Update(room); err != nil {
+			return c.String(http.StatusInternalServerError, "Failed to update room")
+		}
 	}
 
 	return c.Render(http.StatusOK, "room.html", map[string]any{
@@ -211,7 +217,9 @@ func (h *Handler) DeleteRoom(c echo.Context) error {
 		return c.JSON(http.StatusForbidden, map[string]string{"error": "Only room owner can delete"})
 	}
 
-	h.store.Delete(roomID)
+	if err := h.store.Delete(roomID); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete room"})
+	}
 
 	return c.JSON(http.StatusOK, map[string]string{"message": "Room deleted"})
 }
@@ -237,6 +245,10 @@ func (h *Handler) WebSocket(c echo.Context) error {
 	// Ensure user is a participant
 	if _, exists := room.GetParticipant(user.ID); !exists {
 		room.AddParticipant(user, models.RoleParticipant)
+		// Update room in store
+		if err := h.store.Update(room); err != nil {
+			return c.String(http.StatusInternalServerError, "Failed to update room")
+		}
 	}
 
 	// Notify others that user joined

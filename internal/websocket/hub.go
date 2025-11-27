@@ -40,7 +40,7 @@ func (h *Hub) Run() {
 			}
 			h.rooms[client.RoomID][client.ID] = client
 			h.mu.Unlock()
-			
+
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if clients, ok := h.rooms[client.RoomID]; ok {
@@ -71,11 +71,11 @@ func (h *Hub) BroadcastToRoom(roomID string, msg []byte) {
 	h.mu.RLock()
 	clients, ok := h.rooms[roomID]
 	h.mu.RUnlock()
-	
+
 	if !ok {
 		return
 	}
-	
+
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for _, client := range clients {
@@ -88,11 +88,11 @@ func (h *Hub) BroadcastToRoomExcept(roomID, exceptClientID string, msg []byte) {
 	h.mu.RLock()
 	clients, ok := h.rooms[roomID]
 	h.mu.RUnlock()
-	
+
 	if !ok {
 		return
 	}
-	
+
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for id, client := range clients {
@@ -120,13 +120,13 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.sendError(client, "Invalid message format")
 		return
 	}
-	
+
 	room, ok := h.store.Get(client.RoomID)
 	if !ok {
 		h.sendError(client, "Room not found")
 		return
 	}
-	
+
 	switch message.Type {
 	case MsgAddTicket:
 		h.handleAddTicket(client, room, message.Payload)
@@ -160,13 +160,13 @@ func (h *Hub) handleAddTicket(client *Client, room *models.Room, payload map[str
 		h.sendError(client, "Can only add tickets during ticketing phase")
 		return
 	}
-	
+
 	content, ok := payload["content"].(string)
 	if !ok || content == "" {
 		h.sendError(client, "Content is required")
 		return
 	}
-	
+
 	ticket := &models.Ticket{
 		ID:        uuid.New().String(),
 		Content:   content,
@@ -175,9 +175,15 @@ func (h *Hub) handleAddTicket(client *Client, room *models.Room, payload map[str
 		VoterIDs:  []string{},
 		CreatedAt: time.Now(),
 	}
-	
+
 	room.AddTicket(ticket)
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to save ticket")
+		return
+	}
+
 	response := Message{
 		Type: MsgTicketAdded,
 		Payload: map[string]any{
@@ -191,23 +197,29 @@ func (h *Hub) handleAddTicket(client *Client, room *models.Room, payload map[str
 func (h *Hub) handleEditTicket(client *Client, room *models.Room, payload map[string]any) {
 	ticketID, _ := payload["ticket_id"].(string)
 	content, _ := payload["content"].(string)
-	
+
 	ticket, ok := room.GetTicket(ticketID)
 	if !ok {
 		h.sendError(client, "Ticket not found")
 		return
 	}
-	
+
 	// Only author can edit their ticket
 	if ticket.AuthorID != client.ID && !room.IsModeratorOrOwner(client.ID) {
 		h.sendError(client, "Not authorized to edit this ticket")
 		return
 	}
-	
+
 	room.Lock()
 	ticket.Content = content
 	room.Unlock()
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to update ticket")
+		return
+	}
+
 	response := Message{
 		Type: MsgTicketUpdated,
 		Payload: map[string]any{
@@ -220,21 +232,27 @@ func (h *Hub) handleEditTicket(client *Client, room *models.Room, payload map[st
 
 func (h *Hub) handleDeleteTicket(client *Client, room *models.Room, payload map[string]any) {
 	ticketID, _ := payload["ticket_id"].(string)
-	
+
 	ticket, ok := room.GetTicket(ticketID)
 	if !ok {
 		h.sendError(client, "Ticket not found")
 		return
 	}
-	
+
 	// Only author or moderator can delete
 	if ticket.AuthorID != client.ID && !room.IsModeratorOrOwner(client.ID) {
 		h.sendError(client, "Not authorized to delete this ticket")
 		return
 	}
-	
+
 	room.RemoveTicket(ticketID)
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to delete ticket")
+		return
+	}
+
 	response := Message{
 		Type: MsgTicketDeleted,
 		Payload: map[string]any{
@@ -250,25 +268,31 @@ func (h *Hub) handleCreateGroup(client *Client, room *models.Room, payload map[s
 		h.sendError(client, "Can only create groups during brainstorming phase")
 		return
 	}
-	
+
 	if !room.IsModeratorOrOwner(client.ID) {
 		h.sendError(client, "Only moderators can create groups")
 		return
 	}
-	
+
 	name, _ := payload["name"].(string)
 	if name == "" {
 		name = "New Group"
 	}
-	
+
 	group := &models.TicketGroup{
 		ID:        uuid.New().String(),
 		Name:      name,
 		TicketIDs: []string{},
 	}
-	
+
 	room.AddGroup(group)
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to create group")
+		return
+	}
+
 	response := Message{
 		Type: MsgGroupCreated,
 		Payload: map[string]any{
@@ -284,24 +308,30 @@ func (h *Hub) handleMergeTickets(client *Client, room *models.Room, payload map[
 		h.sendError(client, "Can only merge tickets during brainstorming phase")
 		return
 	}
-	
+
 	if !room.IsModeratorOrOwner(client.ID) {
 		h.sendError(client, "Only moderators can merge tickets")
 		return
 	}
-	
+
 	groupID, _ := payload["group_id"].(string)
 	ticketIDsRaw, _ := payload["ticket_ids"].([]any)
-	
+
 	ticketIDs := make([]string, 0, len(ticketIDsRaw))
 	for _, id := range ticketIDsRaw {
 		if tid, ok := id.(string); ok {
 			ticketIDs = append(ticketIDs, tid)
 		}
 	}
-	
+
 	room.MergeTicketsToGroup(groupID, ticketIDs)
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to merge tickets")
+		return
+	}
+
 	response := Message{
 		Type: MsgTicketsMerged,
 		Payload: map[string]any{
@@ -318,24 +348,30 @@ func (h *Hub) handleVote(client *Client, room *models.Room, payload map[string]a
 		h.sendError(client, "Can only vote during voting phase")
 		return
 	}
-	
+
 	ticketID, _ := payload["ticket_id"].(string)
-	
+
 	if !room.Vote(client.ID, ticketID) {
 		h.sendError(client, "Could not vote (no votes left or already voted)")
 		return
 	}
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to save vote")
+		return
+	}
+
 	ticket, _ := room.GetTicket(ticketID)
 	participant, _ := room.GetParticipant(client.ID)
-	
+
 	response := Message{
 		Type: MsgVoteUpdated,
 		Payload: map[string]any{
-			"ticket_id":   ticketID,
-			"votes":       ticket.Votes,
-			"user_id":     client.ID,
-			"votes_used":  participant.VotesUsed,
+			"ticket_id":  ticketID,
+			"votes":      ticket.Votes,
+			"user_id":    client.ID,
+			"votes_used": participant.VotesUsed,
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
@@ -347,24 +383,30 @@ func (h *Hub) handleUnvote(client *Client, room *models.Room, payload map[string
 		h.sendError(client, "Can only unvote during voting phase")
 		return
 	}
-	
+
 	ticketID, _ := payload["ticket_id"].(string)
-	
+
 	if !room.Unvote(client.ID, ticketID) {
 		h.sendError(client, "Could not unvote")
 		return
 	}
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to save unvote")
+		return
+	}
+
 	ticket, _ := room.GetTicket(ticketID)
 	participant, _ := room.GetParticipant(client.ID)
-	
+
 	response := Message{
 		Type: MsgVoteUpdated,
 		Payload: map[string]any{
-			"ticket_id":   ticketID,
-			"votes":       ticket.Votes,
-			"user_id":     client.ID,
-			"votes_used":  participant.VotesUsed,
+			"ticket_id":  ticketID,
+			"votes":      ticket.Votes,
+			"user_id":    client.ID,
+			"votes_used": participant.VotesUsed,
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
@@ -376,16 +418,16 @@ func (h *Hub) handleAddAction(client *Client, room *models.Room, payload map[str
 		h.sendError(client, "Can only add actions during discussion phase")
 		return
 	}
-	
+
 	if !room.IsModeratorOrOwner(client.ID) {
 		h.sendError(client, "Only moderators can add actions")
 		return
 	}
-	
+
 	content, _ := payload["content"].(string)
 	ticketID, _ := payload["ticket_id"].(string)
 	assigneeID, _ := payload["assignee_id"].(string)
-	
+
 	action := &models.ActionTicket{
 		ID:         uuid.New().String(),
 		Content:    content,
@@ -393,9 +435,15 @@ func (h *Hub) handleAddAction(client *Client, room *models.Room, payload map[str
 		AssigneeID: assigneeID,
 		CreatedAt:  time.Now(),
 	}
-	
+
 	room.AddActionTicket(action)
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to save action")
+		return
+	}
+
 	response := Message{
 		Type: MsgActionAdded,
 		Payload: map[string]any{
@@ -411,10 +459,10 @@ func (h *Hub) handleSetPhase(client *Client, room *models.Room, payload map[stri
 		h.sendError(client, "Only moderators can change phase")
 		return
 	}
-	
+
 	phaseStr, _ := payload["phase"].(string)
 	phase := models.Phase(phaseStr)
-	
+
 	// Validate phase transition
 	validPhases := []models.Phase{
 		models.PhaseTicketing,
@@ -423,7 +471,7 @@ func (h *Hub) handleSetPhase(client *Client, room *models.Room, payload map[stri
 		models.PhaseDiscussion,
 		models.PhaseSummary,
 	}
-	
+
 	valid := false
 	for _, p := range validPhases {
 		if phase == p {
@@ -431,14 +479,20 @@ func (h *Hub) handleSetPhase(client *Client, room *models.Room, payload map[stri
 			break
 		}
 	}
-	
+
 	if !valid {
 		h.sendError(client, "Invalid phase")
 		return
 	}
-	
+
 	room.SetPhase(phase)
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to save phase change")
+		return
+	}
+
 	response := Message{
 		Type: MsgPhaseChanged,
 		Payload: map[string]any{
@@ -454,21 +508,27 @@ func (h *Hub) handleSetRole(client *Client, room *models.Room, payload map[strin
 		h.sendError(client, "Only room owner can change roles")
 		return
 	}
-	
+
 	userID, _ := payload["user_id"].(string)
 	roleStr, _ := payload["role"].(string)
 	role := models.Role(roleStr)
-	
+
 	if role != models.RoleModerator && role != models.RoleParticipant {
 		h.sendError(client, "Invalid role")
 		return
 	}
-	
+
 	if !room.SetParticipantRole(userID, role) {
 		h.sendError(client, "User not found")
 		return
 	}
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to save role change")
+		return
+	}
+
 	response := Message{
 		Type: MsgRoleChanged,
 		Payload: map[string]any{
@@ -485,17 +545,23 @@ func (h *Hub) handleRemoveUser(client *Client, room *models.Room, payload map[st
 		h.sendError(client, "Only owner or moderator can remove users")
 		return
 	}
-	
+
 	userID, _ := payload["user_id"].(string)
-	
+
 	// Cannot remove the owner
 	if userID == room.OwnerID {
 		h.sendError(client, "Cannot remove room owner")
 		return
 	}
-	
+
 	room.RemoveParticipant(userID)
-	
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to remove user")
+		return
+	}
+
 	response := Message{
 		Type: MsgUserRemoved,
 		Payload: map[string]any{
@@ -521,7 +587,7 @@ func (h *Hub) sendError(client *Client, message string) {
 func (h *Hub) SendRoomState(client *Client, room *models.Room) {
 	room.RLock()
 	defer room.RUnlock()
-	
+
 	response := Message{
 		Type: MsgRoomState,
 		Payload: map[string]any{
