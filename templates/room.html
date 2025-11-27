@@ -430,8 +430,8 @@
                 }
             });
             
-            // Sort by votes in voting/discussion/summary phases
-            if (['VOTING', 'DISCUSSION', 'SUMMARY'].includes(state.phase)) {
+            // Sort by votes in discussion/summary phases only
+            if (['DISCUSSION', 'SUMMARY'].includes(state.phase)) {
                 parentTickets.sort((a, b) => (b.votes || 0) - (a.votes || 0));
             }
             
