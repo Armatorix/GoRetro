@@ -26,6 +26,29 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
+        .ticket.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .ticket.drag-over {
+            border: 2px dashed #4F46E5 !important;
+            background-color: #EEF2FF !important;
+        }
+        .ticket.draggable {
+            cursor: grab;
+        }
+        .group-drop-zone {
+            transition: all 0.2s;
+        }
+        .group-drop-zone.drag-over {
+            border-color: #4F46E5 !important;
+            background-color: #EEF2FF !important;
+            transform: scale(1.02);
+        }
+        .tickets-container-drop-zone.drag-over {
+            background-color: #FEF3C7 !important;
+            border: 2px dashed #F59E0B !important;
+        }
         .phase-indicator {
             transition: all 0.3s;
         }
@@ -104,7 +127,7 @@
                         </div>
                         
                         <!-- Tickets Grid -->
-                        <div id="tickets-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div id="tickets-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[100px] p-2 rounded-lg transition-all">
                             <!-- Tickets will be rendered here -->
                         </div>
                         
@@ -155,6 +178,22 @@
                 <div class="flex justify-end space-x-2">
                     <button id="cancel-group-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
                     <button id="confirm-group-modal" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700">Create</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Merge Tickets Modal -->
+        <div id="merge-tickets-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Create Group from Tickets</h3>
+                <p class="text-gray-600 mb-4">Enter a name for the new group:</p>
+                <input type="text" id="merge-group-name-input" placeholder="Group name" 
+                       class="w-full border rounded-md p-2 mb-4 focus:border-primary focus:ring-primary">
+                <input type="hidden" id="merge-ticket-1">
+                <input type="hidden" id="merge-ticket-2">
+                <div class="flex justify-end space-x-2">
+                    <button id="cancel-merge-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                    <button id="confirm-merge-modal" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700">Create Group</button>
                 </div>
             </div>
         </div>
@@ -246,6 +285,12 @@
                 case 'tickets_merged':
                     handleTicketsMerged(msg.payload);
                     break;
+                case 'ticket_removed_from_group':
+                    handleTicketRemovedFromGroup(msg.payload);
+                    break;
+                case 'group_deleted':
+                    handleGroupDeleted(msg.payload);
+                    break;
                 case 'vote_updated':
                     handleVoteUpdated(msg.payload);
                     break;
@@ -318,21 +363,77 @@
         
         function handleGroupCreated(payload) {
             state.groups[payload.group.id] = payload.group;
+            
+            // If there's a pending merge, execute it now
+            if (window.pendingMerge) {
+                const { ticket1, ticket2 } = window.pendingMerge;
+                send({ 
+                    type: 'merge_tickets', 
+                    payload: { 
+                        group_id: payload.group.id,
+                        ticket_ids: [ticket1, ticket2]
+                    } 
+                });
+                window.pendingMerge = null;
+            }
+            
             renderGroups();
         }
         
         function handleTicketsMerged(payload) {
             payload.ticket_ids.forEach(tid => {
                 if (state.tickets[tid]) {
+                    // Remove from old group if moving between groups
+                    const oldGroupId = state.tickets[tid].group_id;
+                    if (oldGroupId && oldGroupId !== payload.group_id && state.groups[oldGroupId]) {
+                        state.groups[oldGroupId].ticket_ids = 
+                            state.groups[oldGroupId].ticket_ids.filter(id => id !== tid);
+                        
+                        // Delete empty group
+                        if (state.groups[oldGroupId].ticket_ids.length === 0) {
+                            delete state.groups[oldGroupId];
+                        }
+                    }
+                    
                     state.tickets[tid].group_id = payload.group_id;
                 }
             });
+            
             if (state.groups[payload.group_id]) {
-                state.groups[payload.group_id].ticket_ids = [
-                    ...state.groups[payload.group_id].ticket_ids,
-                    ...payload.ticket_ids
-                ];
+                // Add tickets if not already in group
+                const currentTickets = state.groups[payload.group_id].ticket_ids || [];
+                payload.ticket_ids.forEach(tid => {
+                    if (!currentTickets.includes(tid)) {
+                        currentTickets.push(tid);
+                    }
+                });
+                state.groups[payload.group_id].ticket_ids = currentTickets;
             }
+            
+            renderAll();
+        }
+        
+        function handleTicketRemovedFromGroup(payload) {
+            const ticketId = payload.ticket_id;
+            const groupId = payload.group_id;
+            
+            // Update ticket state
+            if (state.tickets[ticketId]) {
+                state.tickets[ticketId].group_id = '';
+            }
+            
+            // Update group state
+            if (state.groups[groupId]) {
+                state.groups[groupId].ticket_ids = 
+                    state.groups[groupId].ticket_ids.filter(tid => tid !== ticketId);
+            }
+            
+            renderAll();
+        }
+        
+        function handleGroupDeleted(payload) {
+            const groupId = payload.group_id;
+            delete state.groups[groupId];
             renderAll();
         }
         
@@ -444,12 +545,17 @@
                 return;
             }
             
+            // Filter ungrouped tickets only
+            const ungroupedTickets = tickets.filter(t => !t.group_id);
+            
             // Sort by votes in voting/discussion/summary phases
             if (['VOTING', 'DISCUSSION', 'SUMMARY'].includes(state.phase)) {
-                tickets.sort((a, b) => (b.votes || 0) - (a.votes || 0));
+                ungroupedTickets.sort((a, b) => (b.votes || 0) - (a.votes || 0));
             }
             
-            container.innerHTML = tickets.map(ticket => {
+            const isDraggable = state.phase === 'BRAINSTORMING';
+            
+            container.innerHTML = ungroupedTickets.map(ticket => {
                 const isOwn = ticket.author_id === userId;
                 const canEdit = isOwn || state.isModeratorOrOwner;
                 const canVote = state.phase === 'VOTING';
@@ -457,7 +563,9 @@
                 const ticketColor = getTicketColor(ticket.author_id);
                 
                 return `
-                    <div class="ticket ${ticketColor.bg} border ${ticketColor.border} rounded-md p-4" data-ticket-id="${ticket.id}">
+                    <div class="ticket ${ticketColor.bg} border ${ticketColor.border} rounded-md p-4 ${isDraggable ? 'draggable' : ''}" 
+                         data-ticket-id="${ticket.id}"
+                         ${isDraggable ? 'draggable="true"' : ''}>
                         <p class="text-gray-800 mb-3">${escapeHtml(ticket.content)}</p>
                         <div class="flex justify-between items-center text-sm">
                             <span class="text-gray-500">${getParticipantName(ticket.author_id)}</span>
@@ -483,6 +591,11 @@
                     </div>
                 `;
             }).join('');
+            
+            // Add drag and drop event listeners in brainstorming phase
+            if (isDraggable) {
+                setupDragAndDrop();
+            }
         }
         
         function renderGroups() {
@@ -503,16 +616,40 @@
             
             const groups = Object.values(state.groups);
             if (groups.length === 0) {
-                groupsList.innerHTML = '<p class="text-gray-500 text-center py-4">No groups yet.</p>';
+                groupsList.innerHTML = '<p class="text-gray-500 text-center py-4">No groups yet. Drag one ticket over another to create a group!</p>';
                 return;
             }
             
-            groupsList.innerHTML = groups.map(group => `
-                <div class="border rounded-md p-4 bg-blue-50" data-group-id="${group.id}">
-                    <h4 class="font-medium text-gray-800 mb-2">${escapeHtml(group.name)}</h4>
-                    <div class="text-sm text-gray-600">${group.ticket_ids ? group.ticket_ids.length : 0} tickets</div>
-                </div>
-            `).join('');
+            const isDraggable = state.phase === 'BRAINSTORMING';
+            
+            groupsList.innerHTML = groups.map(group => {
+                const groupTickets = (group.ticket_ids || [])
+                    .map(tid => state.tickets[tid])
+                    .filter(t => t); // Filter out null/undefined tickets
+                
+                return `
+                    <div class="group-drop-zone border-2 border-blue-300 rounded-lg p-4 bg-blue-50 min-h-[120px]" data-group-id="${group.id}">
+                        <h4 class="font-semibold text-gray-800 mb-3 text-lg">${escapeHtml(group.name)}</h4>
+                        <div class="text-sm text-gray-600 mb-3">${groupTickets.length} ticket(s)</div>
+                        <div class="space-y-2">
+                            ${groupTickets.map(ticket => `
+                                <div class="ticket bg-white border border-gray-200 rounded-md p-3 text-sm ${isDraggable ? 'draggable' : ''}" 
+                                     data-ticket-id="${ticket.id}" 
+                                     data-in-group="${group.id}"
+                                     ${isDraggable ? 'draggable="true"' : ''}>
+                                    <p class="text-gray-800">${escapeHtml(ticket.content)}</p>
+                                    <span class="text-xs text-gray-500">${getParticipantName(ticket.author_id)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Setup drag and drop for groups
+            if (isDraggable) {
+                setupGroupDragAndDrop();
+            }
         }
         
         function renderActions() {
@@ -607,6 +744,241 @@
             }
         }
         
+        // Drag and Drop functionality
+        let draggedTicketId = null;
+        let draggedFromGroup = null;
+        
+        function setupDragAndDrop() {
+            const ticketElements = document.querySelectorAll('#tickets-container .ticket.draggable');
+            
+            ticketElements.forEach(ticket => {
+                ticket.addEventListener('dragstart', handleDragStart);
+                ticket.addEventListener('dragend', handleDragEnd);
+                ticket.addEventListener('dragover', handleDragOver);
+                ticket.addEventListener('dragleave', handleDragLeave);
+                ticket.addEventListener('drop', handleDrop);
+            });
+            
+            // Make tickets container a drop zone for removing from groups
+            const ticketsContainer = document.getElementById('tickets-container');
+            ticketsContainer.addEventListener('dragover', handleContainerDragOver);
+            ticketsContainer.addEventListener('dragleave', handleContainerDragLeave);
+            ticketsContainer.addEventListener('drop', handleContainerDrop);
+        }
+        
+        function setupGroupDragAndDrop() {
+            const groupElements = document.querySelectorAll('.group-drop-zone');
+            const ticketElements = document.querySelectorAll('.group-drop-zone .ticket.draggable');
+            
+            // Setup drag events for tickets in groups
+            ticketElements.forEach(ticket => {
+                ticket.addEventListener('dragstart', handleDragStart);
+                ticket.addEventListener('dragend', handleDragEnd);
+                ticket.addEventListener('dragover', handleDragOver);
+                ticket.addEventListener('dragleave', handleDragLeave);
+                ticket.addEventListener('drop', handleDrop);
+            });
+            
+            // Setup drop zones for groups
+            groupElements.forEach(group => {
+                group.addEventListener('dragover', handleGroupDragOver);
+                group.addEventListener('dragleave', handleGroupDragLeave);
+                group.addEventListener('drop', handleGroupDrop);
+            });
+        }
+        
+        function handleDragStart(e) {
+            draggedTicketId = e.currentTarget.dataset.ticketId;
+            draggedFromGroup = e.currentTarget.dataset.inGroup || null;
+            e.currentTarget.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+        }
+        
+        function handleDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            // Remove drag-over class from all elements
+            document.querySelectorAll('.ticket, .group-drop-zone, #tickets-container').forEach(el => {
+                el.classList.remove('drag-over');
+            });
+            draggedFromGroup = null;
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            
+            const targetTicketId = e.currentTarget.dataset.ticketId;
+            const targetInGroup = e.currentTarget.dataset.inGroup;
+            
+            // Only show drag-over if dropping on a different ticket in same container
+            if (targetTicketId !== draggedTicketId && targetInGroup === draggedFromGroup) {
+                e.currentTarget.classList.add('drag-over');
+            }
+            return false;
+        }
+        
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            e.currentTarget.classList.remove('drag-over');
+            
+            const targetTicketId = e.currentTarget.dataset.ticketId;
+            const targetInGroup = e.currentTarget.dataset.inGroup;
+            
+            if (draggedTicketId && targetTicketId && draggedTicketId !== targetTicketId) {
+                // Only allow merging ungrouped tickets
+                if (!draggedFromGroup && !targetInGroup) {
+                    showMergeTicketsModal(draggedTicketId, targetTicketId);
+                }
+            }
+            
+            return false;
+        }
+        
+        function handleGroupDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            
+            const targetGroupId = e.currentTarget.dataset.groupId;
+            // Don't highlight if already in this group
+            if (draggedFromGroup !== targetGroupId) {
+                e.currentTarget.classList.add('drag-over');
+            }
+            return false;
+        }
+        
+        function handleGroupDragLeave(e) {
+            // Only remove if actually leaving the group (not just entering a child)
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+                e.currentTarget.classList.remove('drag-over');
+            }
+        }
+        
+        function handleGroupDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            e.currentTarget.classList.remove('drag-over');
+            
+            const targetGroupId = e.currentTarget.dataset.groupId;
+            
+            if (draggedTicketId && targetGroupId && draggedFromGroup !== targetGroupId) {
+                // Add ticket to group
+                addTicketToGroup(draggedTicketId, targetGroupId, draggedFromGroup);
+            }
+            
+            return false;
+        }
+        
+        function handleContainerDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            
+            // Only show drop zone if dragging from a group
+            if (draggedFromGroup) {
+                e.dataTransfer.dropEffect = 'move';
+                e.currentTarget.classList.add('drag-over');
+            }
+            return false;
+        }
+        
+        function handleContainerDragLeave(e) {
+            if (!e.currentTarget.contains(e.relatedTarget)) {
+                e.currentTarget.classList.remove('drag-over');
+            }
+        }
+        
+        function handleContainerDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            e.currentTarget.classList.remove('drag-over');
+            
+            // Remove ticket from group
+            if (draggedTicketId && draggedFromGroup) {
+                removeTicketFromGroup(draggedTicketId, draggedFromGroup);
+            }
+            
+            return false;
+        }
+        
+        function addTicketToGroup(ticketId, groupId, fromGroupId) {
+            if (fromGroupId) {
+                // Move from one group to another
+                send({ 
+                    type: 'merge_tickets', 
+                    payload: { 
+                        group_id: groupId,
+                        ticket_ids: [ticketId]
+                    } 
+                });
+                // Also need to remove from old group by cleaning up
+                window.needsGroupCleanup = fromGroupId;
+            } else {
+                // Add ungrouped ticket to group
+                send({ 
+                    type: 'merge_tickets', 
+                    payload: { 
+                        group_id: groupId,
+                        ticket_ids: [ticketId]
+                    } 
+                });
+            }
+        }
+        
+        function removeTicketFromGroup(ticketId, groupId) {
+            // Send message to backend to remove ticket from group
+            send({ 
+                type: 'remove_ticket_from_group', 
+                payload: { 
+                    ticket_id: ticketId,
+                    group_id: groupId
+                } 
+            });
+        }
+        
+        function showMergeTicketsModal(ticket1Id, ticket2Id) {
+            const modal = document.getElementById('merge-tickets-modal');
+            const input = document.getElementById('merge-group-name-input');
+            
+            // Get ticket contents for default group name
+            const ticket1 = state.tickets[ticket1Id];
+            const ticket2 = state.tickets[ticket2Id];
+            
+            // Suggest a group name based on common words or just "New Group"
+            input.value = 'New Group';
+            
+            document.getElementById('merge-ticket-1').value = ticket1Id;
+            document.getElementById('merge-ticket-2').value = ticket2Id;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            input.focus();
+            input.select();
+            
+            // Allow Enter key to confirm
+            input.onkeypress = function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('confirm-merge-modal').click();
+                }
+            };
+        }
+        
+        
         // Event Handlers
         document.getElementById('add-ticket-btn').onclick = function() {
             document.getElementById('add-ticket-form').classList.remove('hidden');
@@ -665,6 +1037,34 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         };
+        
+        document.getElementById('cancel-merge-modal').onclick = function() {
+            const modal = document.getElementById('merge-tickets-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        
+        document.getElementById('confirm-merge-modal').onclick = function() {
+            const modal = document.getElementById('merge-tickets-modal');
+            const groupName = document.getElementById('merge-group-name-input').value.trim();
+            const ticket1 = document.getElementById('merge-ticket-1').value;
+            const ticket2 = document.getElementById('merge-ticket-2').value;
+            
+            if (groupName && ticket1 && ticket2) {
+                // First create the group
+                send({ 
+                    type: 'create_group', 
+                    payload: { name: groupName }
+                });
+                
+                // Store tickets to merge and wait for group creation
+                window.pendingMerge = { ticket1, ticket2 };
+            }
+            
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        
         
         // Global functions for inline event handlers
         window.toggleVote = function(ticketId, hasVoted) {

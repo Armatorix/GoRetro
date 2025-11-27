@@ -27,3 +27,8 @@ staticPasswords:
     hash: "$2a$12$UpiHnfcNTvjK2Afk4b4f0OcS23pyXeU9Ixx8K4bp5bvSyxQcr4R82"
     username: "admin2"
     userID: "18b9684b-cd99-5c84-a1b0-4de2772f6577"
+  - email: "a3@e.com"
+    # bcrypt hash of the string "password"
+    hash: "$2a$12$UpiHnfcNTvjK2Afk4b4f0OcS23pyXeU9Ixx8K4bp5bvSyxQcr4R82"
+    username: "admin3"
+    userID: "28c0684b-deaa-6d95-b2c1-5ef3883f7688"

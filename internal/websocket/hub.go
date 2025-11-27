@@ -138,6 +138,8 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleCreateGroup(client, room, message.Payload)
 	case MsgMergeTickets:
 		h.handleMergeTickets(client, room, message.Payload)
+	case MsgRemoveTicketFromGroup:
+		h.handleRemoveTicketFromGroup(client, room, message.Payload)
 	case MsgVote:
 		h.handleVote(client, room, message.Payload)
 	case MsgUnvote:
@@ -341,6 +343,52 @@ func (h *Hub) handleMergeTickets(client *Client, room *models.Room, payload map[
 	}
 	responseBytes, _ := json.Marshal(response)
 	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
+func (h *Hub) handleRemoveTicketFromGroup(client *Client, room *models.Room, payload map[string]any) {
+	if room.Phase != models.PhaseBrainstorm {
+		h.sendError(client, "Can only remove tickets from groups during brainstorming phase")
+		return
+	}
+
+	ticketID, _ := payload["ticket_id"].(string)
+	groupID, _ := payload["group_id"].(string)
+
+	if ticketID == "" || groupID == "" {
+		h.sendError(client, "ticket_id and group_id are required")
+		return
+	}
+
+	// Remove ticket from group
+	groupDeleted := room.RemoveTicketFromGroup(ticketID, groupID)
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to remove ticket from group")
+		return
+	}
+
+	response := Message{
+		Type: MsgTicketRemovedFromGroup,
+		Payload: map[string]any{
+			"ticket_id": ticketID,
+			"group_id":  groupID,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	h.BroadcastToRoom(room.ID, responseBytes)
+
+	// If group was deleted, notify clients
+	if groupDeleted {
+		deleteResponse := Message{
+			Type: MsgGroupDeleted,
+			Payload: map[string]any{
+				"group_id": groupID,
+			},
+		}
+		deleteResponseBytes, _ := json.Marshal(deleteResponse)
+		h.BroadcastToRoom(room.ID, deleteResponseBytes)
+	}
 }
 
 func (h *Hub) handleVote(client *Client, room *models.Room, payload map[string]any) {
