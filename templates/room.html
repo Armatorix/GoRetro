@@ -543,9 +543,13 @@
         function renderParticipants() {
             const list = document.getElementById('participants-list');
             const participants = Object.values(state.participants);
+            const isOwner = state.participants[userId]?.role === 'owner';
             
             list.innerHTML = participants.map(p => {
                 const roleColor = p.role === 'owner' ? 'text-yellow-600' : p.role === 'moderator' ? 'text-blue-600' : 'text-gray-600';
+                const canChangeRole = isOwner && p.user.id !== userId && p.role !== 'owner';
+                const isModerator = p.role === 'moderator';
+                
                 return `
                     <li class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
                         <div class="flex items-center">
@@ -557,6 +561,14 @@
                                 <span class="text-xs ${roleColor} ml-1">(${p.role})</span>
                             </div>
                         </div>
+                        ${canChangeRole ? `
+                            <button 
+                                onclick="toggleModeratorRole('${p.user.id}', ${isModerator})" 
+                                class="text-xs px-2 py-1 rounded ${isModerator ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
+                                title="${isModerator ? 'Demote from moderator' : 'Promote to moderator'}">
+                                ${isModerator ? '↓ Demote' : '↑ Promote'}
+                            </button>
+                        ` : ''}
                     </li>
                 `;
             }).join('');
@@ -668,6 +680,17 @@
             document.getElementById('delete-ticket-id').value = ticketId;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+        };
+        
+        window.toggleModeratorRole = function(targetUserId, isModerator) {
+            const newRole = isModerator ? 'participant' : 'moderator';
+            send({ 
+                type: 'set_role', 
+                payload: { 
+                    user_id: targetUserId, 
+                    role: newRole 
+                } 
+            });
         };
     })();
     </script>
