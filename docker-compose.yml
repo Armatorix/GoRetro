@@ -23,6 +23,7 @@ services:
 
       # Auth Provider Configuration (OIDC / Dex)
       - OAUTH2_PROXY_PROVIDER=oidc
+      - OAUTH2_PROXY_PROVIDER_DISPLAY_NAME=GoRetro OIDC Provider
       - OAUTH2_PROXY_OIDC_ISSUER_URL=http://localhost:5556/dex
       - OAUTH2_PROXY_CLIENT_ID=goretro-client-id
       - OAUTH2_PROXY_CLIENT_SECRET=goretro-client-secret
