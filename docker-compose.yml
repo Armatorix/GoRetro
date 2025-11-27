@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: goretro-app
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
+    container_name: goretro-oauth2-proxy
+    restart: unless-stopped
+    ports:
+      - '80:4180'
+    extra_hosts:
+      - 'localhost:host-gateway'
+    environment:
+      # Configuration for OAuth2 Proxy
+      - OAUTH2_PROXY_UPSTREAMS=http://app:8080/
+      - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+
+      # Auth Provider Configuration (OIDC / Dex)
+      - OAUTH2_PROXY_PROVIDER=oidc
+      - OAUTH2_PROXY_OIDC_ISSUER_URL=http://localhost:5556/dex
+      - OAUTH2_PROXY_CLIENT_ID=goretro-client-id
+      - OAUTH2_PROXY_CLIENT_SECRET=goretro-client-secret
+      - OAUTH2_PROXY_REDIRECT_URL=http://localhost/oauth2/callback
+
+      # Cookie Configuration
+      - OAUTH2_PROXY_COOKIE_SECRET=1234123412341234
+      - OAUTH2_PROXY_EMAIL_DOMAINS=*
+
+    depends_on:
+      - app
+      - dex
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.38.0
+    container_name: goretro-dex
+    restart: unless-stopped
+    ports:
+      - '5556:5556'
+    volumes:
+      - ./dex/config.yaml:/config.yaml
+    command: ['dex', 'serve', '/config.yaml']

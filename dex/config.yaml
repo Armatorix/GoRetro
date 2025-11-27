@@ -1,0 +1,29 @@
+# The base path of dex and the external name of the OpenID Connect service.
+# This is the canonical URL that all clients MUST use to refer to dex.
+issuer: http://localhost:5556/dex
+# Store data in memory for local development (no database needed)
+storage:
+  type: memory
+# HTTP listener
+web:
+  http: 0.0.0.0:5556
+# Static client configuration for oauth2-proxy
+staticClients:
+  - id: goretro-client-id
+    redirectURIs:
+      - 'http://localhost/oauth2/callback'
+    name: 'GoRetro'
+    secret: goretro-client-secret
+# Static user for logging in
+enablePasswordDB: true
+staticPasswords:
+  - email: "admin@example.com"
+    # bcrypt hash of the string "password"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "admin"
+    userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+  - email: "admin2@example.com"
+    # bcrypt hash of the string "password"
+    hash: "$2a$10$7QJH5G8x1YpX9E6Z0Fh8EuXK1JH9s8Fh8K1JH9s8Fh8K1JH9s8Fh8K"
+    username: "admin2"
+    userID: "18b9684b-cd99-5c84-a1b0-4de2772f6577"
