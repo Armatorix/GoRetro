@@ -37,17 +37,20 @@
         .ticket.draggable {
             cursor: grab;
         }
-        .group-drop-zone {
-            transition: all 0.2s;
+        .deduplicated-tickets {
+            margin-left: 1.5rem;
+            border-left: 3px solid #E5E7EB;
+            padding-left: 0.75rem;
         }
-        .group-drop-zone.drag-over {
-            border-color: #4F46E5 !important;
-            background-color: #EEF2FF !important;
-            transform: scale(1.02);
+        .parent-ticket {
+            position: relative;
         }
-        .tickets-container-drop-zone.drag-over {
-            background-color: #FEF3C7 !important;
-            border: 2px dashed #F59E0B !important;
+        .parent-ticket::before {
+            content: '🔗';
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            font-size: 1.2rem;
         }
         .phase-indicator {
             transition: all 0.3s;
@@ -127,19 +130,8 @@
                         </div>
                         
                         <!-- Tickets Grid -->
-                        <div id="tickets-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 min-h-[100px] p-2 rounded-lg transition-all">
+                        <div id="tickets-container" class="space-y-4 min-h-[100px] p-2 rounded-lg transition-all">
                             <!-- Tickets will be rendered here -->
-                        </div>
-                        
-                        <!-- Groups Container (for brainstorming phase) -->
-                        <div id="groups-container" class="hidden mt-6">
-                            <h3 class="text-md font-semibold text-gray-700 mb-3">Groups</h3>
-                            <div id="groups-list" class="space-y-4">
-                                <!-- Groups will be rendered here -->
-                            </div>
-                            <button id="create-group-btn" class="mt-4 border-2 border-dashed border-gray-300 rounded-md p-4 w-full text-gray-500 hover:border-primary hover:text-primary transition-colors hidden">
-                                + Create Group
-                            </button>
                         </div>
                         
                         <!-- Action Tickets (for discussion phase) -->
@@ -167,35 +159,6 @@
         <!-- Toast Notification -->
         <div id="toast" class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-full opacity-0 transition-all duration-300 z-50">
             <span id="toast-message"></span>
-        </div>
-        
-        <!-- Create Group Modal -->
-        <div id="create-group-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Create New Group</h3>
-                <input type="text" id="group-name-input" placeholder="Group name" 
-                       class="w-full border rounded-md p-2 mb-4 focus:border-primary focus:ring-primary">
-                <div class="flex justify-end space-x-2">
-                    <button id="cancel-group-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
-                    <button id="confirm-group-modal" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700">Create</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Merge Tickets Modal -->
-        <div id="merge-tickets-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Create Group from Tickets</h3>
-                <p class="text-gray-600 mb-4">Enter a name for the new group:</p>
-                <input type="text" id="merge-group-name-input" placeholder="Group name" 
-                       class="w-full border rounded-md p-2 mb-4 focus:border-primary focus:ring-primary">
-                <input type="hidden" id="merge-ticket-1">
-                <input type="hidden" id="merge-ticket-2">
-                <div class="flex justify-end space-x-2">
-                    <button id="cancel-merge-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
-                    <button id="confirm-merge-modal" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700">Create Group</button>
-                </div>
-            </div>
         </div>
         
         <!-- Confirm Delete Modal -->
@@ -233,7 +196,6 @@
         let state = {
             phase: 'TICKETING',
             tickets: {},
-            groups: {},
             actions: {},
             participants: {},
             votesPerUser: 3,
@@ -279,18 +241,6 @@
                 case 'ticket_deleted':
                     handleTicketDeleted(msg.payload);
                     break;
-                case 'group_created':
-                    handleGroupCreated(msg.payload);
-                    break;
-                case 'tickets_merged':
-                    handleTicketsMerged(msg.payload);
-                    break;
-                case 'ticket_removed_from_group':
-                    handleTicketRemovedFromGroup(msg.payload);
-                    break;
-                case 'group_deleted':
-                    handleGroupDeleted(msg.payload);
-                    break;
                 case 'vote_updated':
                     handleVoteUpdated(msg.payload);
                     break;
@@ -332,7 +282,6 @@
             state.phase = payload.phase;
             state.votesPerUser = payload.votes_per_user;
             state.tickets = payload.tickets || {};
-            state.groups = payload.ticket_groups || {};
             state.actions = payload.action_tickets || {};
             state.participants = payload.participants || {};
             
@@ -359,82 +308,6 @@
         function handleTicketDeleted(payload) {
             delete state.tickets[payload.ticket_id];
             renderTickets();
-        }
-        
-        function handleGroupCreated(payload) {
-            state.groups[payload.group.id] = payload.group;
-            
-            // If there's a pending merge, execute it now
-            if (window.pendingMerge) {
-                const { ticket1, ticket2 } = window.pendingMerge;
-                send({ 
-                    type: 'merge_tickets', 
-                    payload: { 
-                        group_id: payload.group.id,
-                        ticket_ids: [ticket1, ticket2]
-                    } 
-                });
-                window.pendingMerge = null;
-            }
-            
-            renderGroups();
-        }
-        
-        function handleTicketsMerged(payload) {
-            payload.ticket_ids.forEach(tid => {
-                if (state.tickets[tid]) {
-                    // Remove from old group if moving between groups
-                    const oldGroupId = state.tickets[tid].group_id;
-                    if (oldGroupId && oldGroupId !== payload.group_id && state.groups[oldGroupId]) {
-                        state.groups[oldGroupId].ticket_ids = 
-                            state.groups[oldGroupId].ticket_ids.filter(id => id !== tid);
-                        
-                        // Delete empty group
-                        if (state.groups[oldGroupId].ticket_ids.length === 0) {
-                            delete state.groups[oldGroupId];
-                        }
-                    }
-                    
-                    state.tickets[tid].group_id = payload.group_id;
-                }
-            });
-            
-            if (state.groups[payload.group_id]) {
-                // Add tickets if not already in group
-                const currentTickets = state.groups[payload.group_id].ticket_ids || [];
-                payload.ticket_ids.forEach(tid => {
-                    if (!currentTickets.includes(tid)) {
-                        currentTickets.push(tid);
-                    }
-                });
-                state.groups[payload.group_id].ticket_ids = currentTickets;
-            }
-            
-            renderAll();
-        }
-        
-        function handleTicketRemovedFromGroup(payload) {
-            const ticketId = payload.ticket_id;
-            const groupId = payload.group_id;
-            
-            // Update ticket state
-            if (state.tickets[ticketId]) {
-                state.tickets[ticketId].group_id = '';
-            }
-            
-            // Update group state
-            if (state.groups[groupId]) {
-                state.groups[groupId].ticket_ids = 
-                    state.groups[groupId].ticket_ids.filter(tid => tid !== ticketId);
-            }
-            
-            renderAll();
-        }
-        
-        function handleGroupDeleted(payload) {
-            const groupId = payload.group_id;
-            delete state.groups[groupId];
-            renderAll();
         }
         
         function handleVoteUpdated(payload) {
@@ -497,7 +370,6 @@
         function renderAll() {
             renderPhaseIndicator();
             renderTickets();
-            renderGroups();
             renderActions();
             renderParticipants();
             renderVotesInfo();
@@ -541,29 +413,53 @@
             const tickets = Object.values(state.tickets);
             
             if (tickets.length === 0) {
-                container.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">No tickets yet. Be the first to add one!</p>';
+                container.innerHTML = '<p class="text-center text-gray-500 py-8">No tickets yet. Be the first to add one!</p>';
                 return;
             }
             
-            // Filter ungrouped tickets only
-            const ungroupedTickets = tickets.filter(t => !t.group_id);
+            // Group tickets by parent (deduplication_ticket_id)
+            const parentTickets = tickets.filter(t => !t.deduplication_ticket_id);
+            const childrenMap = {};
+            
+            tickets.forEach(t => {
+                if (t.deduplication_ticket_id) {
+                    if (!childrenMap[t.deduplication_ticket_id]) {
+                        childrenMap[t.deduplication_ticket_id] = [];
+                    }
+                    childrenMap[t.deduplication_ticket_id].push(t);
+                }
+            });
             
             // Sort by votes in voting/discussion/summary phases
             if (['VOTING', 'DISCUSSION', 'SUMMARY'].includes(state.phase)) {
-                ungroupedTickets.sort((a, b) => (b.votes || 0) - (a.votes || 0));
+                parentTickets.sort((a, b) => (b.votes || 0) - (a.votes || 0));
             }
             
             const isDraggable = state.phase === 'BRAINSTORMING';
             
-            container.innerHTML = ungroupedTickets.map(ticket => {
-                const isOwn = ticket.author_id === userId;
-                const canEdit = isOwn || state.isModeratorOrOwner;
-                const canVote = state.phase === 'VOTING';
-                const hasVoted = ticket.voter_ids && ticket.voter_ids.includes(userId);
-                const ticketColor = getTicketColor(ticket.author_id);
+            container.innerHTML = parentTickets.map(ticket => {
+                const children = childrenMap[ticket.id] || [];
+                const hasChildren = children.length > 0;
                 
-                return `
-                    <div class="ticket ${ticketColor.bg} border ${ticketColor.border} rounded-md p-4 ${isDraggable ? 'draggable' : ''}" 
+                return renderTicketWithChildren(ticket, children, isDraggable, hasChildren);
+            }).join('');
+            
+            // Add drag and drop event listeners in brainstorming phase
+            if (isDraggable) {
+                setupDragAndDrop();
+            }
+        }
+        
+        function renderTicketWithChildren(ticket, children, isDraggable, hasChildren) {
+            const isOwn = ticket.author_id === userId;
+            const canEdit = isOwn || state.isModeratorOrOwner;
+            const canVote = state.phase === 'VOTING';
+            const hasVoted = ticket.voter_ids && ticket.voter_ids.includes(userId);
+            const ticketColor = getTicketColor(ticket.author_id);
+            
+            let html = `
+                <div class="mb-4">
+                    <div class="ticket ${hasChildren ? 'parent-ticket' : ''} ${ticketColor.bg} border ${ticketColor.border} rounded-md p-4 ${isDraggable ? 'draggable' : ''}" 
                          data-ticket-id="${ticket.id}"
                          ${isDraggable ? 'draggable="true"' : ''}>
                         <p class="text-gray-800 mb-3">${escapeHtml(ticket.content)}</p>
@@ -586,71 +482,48 @@
                                         </svg>
                                     </button>
                                 ` : ''}
+                                ${isDraggable && hasChildren && state.isModeratorOrOwner ? `
+                                    <button class="text-gray-400 hover:text-gray-600" onclick="unmergeTicket('${ticket.id}')" title="Unmerge all">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                                        </svg>
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
-                `;
-            }).join('');
+            `;
             
-            // Add drag and drop event listeners in brainstorming phase
-            if (isDraggable) {
-                setupDragAndDrop();
+            if (hasChildren) {
+                html += `<div class="deduplicated-tickets mt-2 space-y-2">`;
+                children.forEach(child => {
+                    const childColor = getTicketColor(child.author_id);
+                    html += `
+                        <div class="ticket ${childColor.bg} border ${childColor.border} rounded-md p-3 ${isDraggable ? 'draggable' : ''}" 
+                             data-ticket-id="${child.id}"
+                             data-parent-id="${ticket.id}"
+                             ${isDraggable ? 'draggable="true"' : ''}>
+                            <p class="text-gray-800 text-sm mb-2">${escapeHtml(child.content)}</p>
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-gray-500">${getParticipantName(child.author_id)}</span>
+                                ${isDraggable && state.isModeratorOrOwner ? `
+                                    <button class="text-gray-400 hover:text-gray-600" onclick="unmergeChild('${child.id}')" title="Separate from parent">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
             }
+            
+            html += `</div>`;
+            return html;
         }
         
-        function renderGroups() {
-            const container = document.getElementById('groups-container');
-            const groupsList = document.getElementById('groups-list');
-            const createBtn = document.getElementById('create-group-btn');
-            
-            if (state.phase !== 'BRAINSTORMING') {
-                container.classList.add('hidden');
-                return;
-            }
-            
-            container.classList.remove('hidden');
-            
-            if (state.isModeratorOrOwner) {
-                createBtn.classList.remove('hidden');
-            }
-            
-            const groups = Object.values(state.groups);
-            if (groups.length === 0) {
-                groupsList.innerHTML = '<p class="text-gray-500 text-center py-4">No groups yet. Drag one ticket over another to create a group!</p>';
-                return;
-            }
-            
-            const isDraggable = state.phase === 'BRAINSTORMING';
-            
-            groupsList.innerHTML = groups.map(group => {
-                const groupTickets = (group.ticket_ids || [])
-                    .map(tid => state.tickets[tid])
-                    .filter(t => t); // Filter out null/undefined tickets
-                
-                return `
-                    <div class="group-drop-zone border-2 border-blue-300 rounded-lg p-4 bg-blue-50 min-h-[120px]" data-group-id="${group.id}">
-                        <h4 class="font-semibold text-gray-800 mb-3 text-lg">${escapeHtml(group.name)}</h4>
-                        <div class="text-sm text-gray-600 mb-3">${groupTickets.length} ticket(s)</div>
-                        <div class="space-y-2">
-                            ${groupTickets.map(ticket => `
-                                <div class="ticket bg-white border border-gray-200 rounded-md p-3 text-sm ${isDraggable ? 'draggable' : ''}" 
-                                     data-ticket-id="${ticket.id}" 
-                                     data-in-group="${group.id}"
-                                     ${isDraggable ? 'draggable="true"' : ''}>
-                                    <p class="text-gray-800">${escapeHtml(ticket.content)}</p>
-                                    <span class="text-xs text-gray-500">${getParticipantName(ticket.author_id)}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            // Setup drag and drop for groups
-            if (isDraggable) {
-                setupGroupDragAndDrop();
-            }
-        }
         
         function renderActions() {
             const container = document.getElementById('actions-container');
@@ -746,10 +619,10 @@
         
         // Drag and Drop functionality
         let draggedTicketId = null;
-        let draggedFromGroup = null;
+        let draggedParentId = null;
         
         function setupDragAndDrop() {
-            const ticketElements = document.querySelectorAll('#tickets-container .ticket.draggable');
+            const ticketElements = document.querySelectorAll('.ticket.draggable');
             
             ticketElements.forEach(ticket => {
                 ticket.addEventListener('dragstart', handleDragStart);
@@ -757,39 +630,12 @@
                 ticket.addEventListener('dragover', handleDragOver);
                 ticket.addEventListener('dragleave', handleDragLeave);
                 ticket.addEventListener('drop', handleDrop);
-            });
-            
-            // Make tickets container a drop zone for removing from groups
-            const ticketsContainer = document.getElementById('tickets-container');
-            ticketsContainer.addEventListener('dragover', handleContainerDragOver);
-            ticketsContainer.addEventListener('dragleave', handleContainerDragLeave);
-            ticketsContainer.addEventListener('drop', handleContainerDrop);
-        }
-        
-        function setupGroupDragAndDrop() {
-            const groupElements = document.querySelectorAll('.group-drop-zone');
-            const ticketElements = document.querySelectorAll('.group-drop-zone .ticket.draggable');
-            
-            // Setup drag events for tickets in groups
-            ticketElements.forEach(ticket => {
-                ticket.addEventListener('dragstart', handleDragStart);
-                ticket.addEventListener('dragend', handleDragEnd);
-                ticket.addEventListener('dragover', handleDragOver);
-                ticket.addEventListener('dragleave', handleDragLeave);
-                ticket.addEventListener('drop', handleDrop);
-            });
-            
-            // Setup drop zones for groups
-            groupElements.forEach(group => {
-                group.addEventListener('dragover', handleGroupDragOver);
-                group.addEventListener('dragleave', handleGroupDragLeave);
-                group.addEventListener('drop', handleGroupDrop);
             });
         }
         
         function handleDragStart(e) {
             draggedTicketId = e.currentTarget.dataset.ticketId;
-            draggedFromGroup = e.currentTarget.dataset.inGroup || null;
+            draggedParentId = e.currentTarget.dataset.parentId || null;
             e.currentTarget.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
@@ -798,10 +644,10 @@
         function handleDragEnd(e) {
             e.currentTarget.classList.remove('dragging');
             // Remove drag-over class from all elements
-            document.querySelectorAll('.ticket, .group-drop-zone, #tickets-container').forEach(el => {
+            document.querySelectorAll('.ticket').forEach(el => {
                 el.classList.remove('drag-over');
             });
-            draggedFromGroup = null;
+            draggedParentId = null;
         }
         
         function handleDragOver(e) {
@@ -811,11 +657,18 @@
             e.dataTransfer.dropEffect = 'move';
             
             const targetTicketId = e.currentTarget.dataset.ticketId;
-            const targetInGroup = e.currentTarget.dataset.inGroup;
+            const targetParentId = e.currentTarget.dataset.parentId;
             
-            // Only show drag-over if dropping on a different ticket in same container
-            if (targetTicketId !== draggedTicketId && targetInGroup === draggedFromGroup) {
-                e.currentTarget.classList.add('drag-over');
+            // Allow drag over if:
+            // 1. Different ticket
+            // 2. Not trying to drag a parent onto its own child
+            // 3. Not trying to drag child onto sibling (same parent)
+            if (targetTicketId !== draggedTicketId) {
+                // Don't allow if target is a child of the dragged ticket
+                const draggedTicket = state.tickets[draggedTicketId];
+                if (targetParentId !== draggedTicketId && draggedParentId !== targetParentId) {
+                    e.currentTarget.classList.add('drag-over');
+                }
             }
             return false;
         }
@@ -832,150 +685,49 @@
             e.currentTarget.classList.remove('drag-over');
             
             const targetTicketId = e.currentTarget.dataset.ticketId;
-            const targetInGroup = e.currentTarget.dataset.inGroup;
+            const targetParentId = e.currentTarget.dataset.parentId;
             
             if (draggedTicketId && targetTicketId && draggedTicketId !== targetTicketId) {
-                // Only allow merging ungrouped tickets
-                if (!draggedFromGroup && !targetInGroup) {
-                    showMergeTicketsModal(draggedTicketId, targetTicketId);
+                // If dropping on a child, actually merge with its parent
+                const actualTargetId = targetParentId || targetTicketId;
+                
+                // Don't allow cyclic references
+                if (actualTargetId !== draggedTicketId) {
+                    mergeTickets(draggedTicketId, actualTargetId);
                 }
             }
             
             return false;
         }
         
-        function handleGroupDragOver(e) {
-            if (e.preventDefault) {
-                e.preventDefault();
-            }
-            e.dataTransfer.dropEffect = 'move';
-            
-            const targetGroupId = e.currentTarget.dataset.groupId;
-            // Don't highlight if already in this group
-            if (draggedFromGroup !== targetGroupId) {
-                e.currentTarget.classList.add('drag-over');
-            }
-            return false;
-        }
-        
-        function handleGroupDragLeave(e) {
-            // Only remove if actually leaving the group (not just entering a child)
-            if (!e.currentTarget.contains(e.relatedTarget)) {
-                e.currentTarget.classList.remove('drag-over');
-            }
-        }
-        
-        function handleGroupDrop(e) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
-            }
-            
-            e.currentTarget.classList.remove('drag-over');
-            
-            const targetGroupId = e.currentTarget.dataset.groupId;
-            
-            if (draggedTicketId && targetGroupId && draggedFromGroup !== targetGroupId) {
-                // Add ticket to group
-                addTicketToGroup(draggedTicketId, targetGroupId, draggedFromGroup);
-            }
-            
-            return false;
-        }
-        
-        function handleContainerDragOver(e) {
-            if (e.preventDefault) {
-                e.preventDefault();
-            }
-            
-            // Only show drop zone if dragging from a group
-            if (draggedFromGroup) {
-                e.dataTransfer.dropEffect = 'move';
-                e.currentTarget.classList.add('drag-over');
-            }
-            return false;
-        }
-        
-        function handleContainerDragLeave(e) {
-            if (!e.currentTarget.contains(e.relatedTarget)) {
-                e.currentTarget.classList.remove('drag-over');
-            }
-        }
-        
-        function handleContainerDrop(e) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
-            }
-            
-            e.currentTarget.classList.remove('drag-over');
-            
-            // Remove ticket from group
-            if (draggedTicketId && draggedFromGroup) {
-                removeTicketFromGroup(draggedTicketId, draggedFromGroup);
-            }
-            
-            return false;
-        }
-        
-        function addTicketToGroup(ticketId, groupId, fromGroupId) {
-            if (fromGroupId) {
-                // Move from one group to another
-                send({ 
-                    type: 'merge_tickets', 
-                    payload: { 
-                        group_id: groupId,
-                        ticket_ids: [ticketId]
-                    } 
-                });
-                // Also need to remove from old group by cleaning up
-                window.needsGroupCleanup = fromGroupId;
-            } else {
-                // Add ungrouped ticket to group
-                send({ 
-                    type: 'merge_tickets', 
-                    payload: { 
-                        group_id: groupId,
-                        ticket_ids: [ticketId]
-                    } 
-                });
-            }
-        }
-        
-        function removeTicketFromGroup(ticketId, groupId) {
-            // Send message to backend to remove ticket from group
+        function mergeTickets(childId, parentId) {
+            // Update ticket to set deduplication_ticket_id
             send({ 
-                type: 'remove_ticket_from_group', 
+                type: 'edit_ticket', 
                 payload: { 
-                    ticket_id: ticketId,
-                    group_id: groupId
+                    ticket_id: childId,
+                    deduplication_ticket_id: parentId
                 } 
             });
         }
         
-        function showMergeTicketsModal(ticket1Id, ticket2Id) {
-            const modal = document.getElementById('merge-tickets-modal');
-            const input = document.getElementById('merge-group-name-input');
-            
-            // Get ticket contents for default group name
-            const ticket1 = state.tickets[ticket1Id];
-            const ticket2 = state.tickets[ticket2Id];
-            
-            // Suggest a group name based on common words or just "New Group"
-            input.value = 'New Group';
-            
-            document.getElementById('merge-ticket-1').value = ticket1Id;
-            document.getElementById('merge-ticket-2').value = ticket2Id;
-            
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            input.focus();
-            input.select();
-            
-            // Allow Enter key to confirm
-            input.onkeypress = function(e) {
-                if (e.key === 'Enter') {
-                    document.getElementById('confirm-merge-modal').click();
-                }
-            };
+        function unmergeChild(childId) {
+            // Remove deduplication_ticket_id
+            send({ 
+                type: 'edit_ticket', 
+                payload: { 
+                    ticket_id: childId,
+                    deduplication_ticket_id: null
+                } 
+            });
+        }
+        
+        function unmergeTicket(parentId) {
+            // Find all children and unmerge them
+            const children = Object.values(state.tickets).filter(t => t.deduplication_ticket_id === parentId);
+            children.forEach(child => {
+                unmergeChild(child.id);
+            });
         }
         
         
@@ -999,31 +751,6 @@
             }
         };
         
-        document.getElementById('create-group-btn').onclick = function() {
-            const modal = document.getElementById('create-group-modal');
-            const input = document.getElementById('group-name-input');
-            input.value = '';
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            input.focus();
-        };
-        
-        document.getElementById('cancel-group-modal').onclick = function() {
-            const modal = document.getElementById('create-group-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-        
-        document.getElementById('confirm-group-modal').onclick = function() {
-            const modal = document.getElementById('create-group-modal');
-            const name = document.getElementById('group-name-input').value.trim();
-            if (name) {
-                send({ type: 'create_group', payload: { name: name } });
-            }
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-        
         document.getElementById('cancel-delete-modal').onclick = function() {
             const modal = document.getElementById('delete-modal');
             modal.classList.add('hidden');
@@ -1034,33 +761,6 @@
             const modal = document.getElementById('delete-modal');
             const ticketId = document.getElementById('delete-ticket-id').value;
             send({ type: 'delete_ticket', payload: { ticket_id: ticketId } });
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-        
-        document.getElementById('cancel-merge-modal').onclick = function() {
-            const modal = document.getElementById('merge-tickets-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-        
-        document.getElementById('confirm-merge-modal').onclick = function() {
-            const modal = document.getElementById('merge-tickets-modal');
-            const groupName = document.getElementById('merge-group-name-input').value.trim();
-            const ticket1 = document.getElementById('merge-ticket-1').value;
-            const ticket2 = document.getElementById('merge-ticket-2').value;
-            
-            if (groupName && ticket1 && ticket2) {
-                // First create the group
-                send({ 
-                    type: 'create_group', 
-                    payload: { name: groupName }
-                });
-                
-                // Store tickets to merge and wait for group creation
-                window.pendingMerge = { ticket1, ticket2 };
-            }
-            
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         };
@@ -1092,6 +792,9 @@
                 } 
             });
         };
+        
+        window.unmergeChild = unmergeChild;
+        window.unmergeTicket = unmergeTicket;
     })();
     </script>
 </body>

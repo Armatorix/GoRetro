@@ -25,18 +25,10 @@ CREATE TABLE IF NOT EXISTS tickets (
     room_id VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     author_id VARCHAR(255) NOT NULL,
-    group_id VARCHAR(255),
+    deduplication_ticket_id VARCHAR(255),
     votes INTEGER NOT NULL DEFAULT 0,
     voter_ids JSONB NOT NULL DEFAULT '[]',
     created_at TIMESTAMP NOT NULL,
-    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS ticket_groups (
-    id VARCHAR(255) PRIMARY KEY,
-    room_id VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    ticket_ids JSONB NOT NULL DEFAULT '[]',
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
@@ -53,6 +45,5 @@ CREATE TABLE IF NOT EXISTS action_tickets (
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_participants_room_id ON participants(room_id);
 CREATE INDEX IF NOT EXISTS idx_tickets_room_id ON tickets(room_id);
-CREATE INDEX IF NOT EXISTS idx_ticket_groups_room_id ON ticket_groups(room_id);
 CREATE INDEX IF NOT EXISTS idx_action_tickets_room_id ON action_tickets(room_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_owner_id ON rooms(owner_id);

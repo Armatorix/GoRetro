@@ -134,12 +134,6 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleEditTicket(client, room, message.Payload)
 	case MsgDeleteTicket:
 		h.handleDeleteTicket(client, room, message.Payload)
-	case MsgCreateGroup:
-		h.handleCreateGroup(client, room, message.Payload)
-	case MsgMergeTickets:
-		h.handleMergeTickets(client, room, message.Payload)
-	case MsgRemoveTicketFromGroup:
-		h.handleRemoveTicketFromGroup(client, room, message.Payload)
 	case MsgVote:
 		h.handleVote(client, room, message.Payload)
 	case MsgUnvote:
@@ -198,7 +192,7 @@ func (h *Hub) handleAddTicket(client *Client, room *models.Room, payload map[str
 
 func (h *Hub) handleEditTicket(client *Client, room *models.Room, payload map[string]any) {
 	ticketID, _ := payload["ticket_id"].(string)
-	content, _ := payload["content"].(string)
+	content, hasContent := payload["content"].(string)
 
 	ticket, ok := room.GetTicket(ticketID)
 	if !ok {
@@ -206,14 +200,30 @@ func (h *Hub) handleEditTicket(client *Client, room *models.Room, payload map[st
 		return
 	}
 
-	// Only author can edit their ticket
+	// Only author or moderator can edit their ticket
 	if ticket.AuthorID != client.ID && !room.IsModeratorOrOwner(client.ID) {
 		h.sendError(client, "Not authorized to edit this ticket")
 		return
 	}
 
 	room.Lock()
-	ticket.Content = content
+
+	// Update content if provided
+	if hasContent {
+		ticket.Content = content
+	}
+
+	// Update deduplication_ticket_id if provided in payload
+	if deduplicationID, exists := payload["deduplication_ticket_id"]; exists {
+		if deduplicationID == nil {
+			// Remove deduplication
+			ticket.DeduplicationTicketID = nil
+		} else if dedupStr, ok := deduplicationID.(string); ok {
+			// Set deduplication to parent ticket
+			ticket.DeduplicationTicketID = &dedupStr
+		}
+	}
+
 	room.Unlock()
 
 	// Persist to database
@@ -263,132 +273,6 @@ func (h *Hub) handleDeleteTicket(client *Client, room *models.Room, payload map[
 	}
 	responseBytes, _ := json.Marshal(response)
 	h.BroadcastToRoom(room.ID, responseBytes)
-}
-
-func (h *Hub) handleCreateGroup(client *Client, room *models.Room, payload map[string]any) {
-	if room.Phase != models.PhaseBrainstorm {
-		h.sendError(client, "Can only create groups during brainstorming phase")
-		return
-	}
-
-	if !room.IsModeratorOrOwner(client.ID) {
-		h.sendError(client, "Only moderators can create groups")
-		return
-	}
-
-	name, _ := payload["name"].(string)
-	if name == "" {
-		name = "New Group"
-	}
-
-	group := &models.TicketGroup{
-		ID:        uuid.New().String(),
-		Name:      name,
-		TicketIDs: []string{},
-	}
-
-	room.AddGroup(group)
-
-	// Persist to database
-	if err := h.store.Update(room); err != nil {
-		h.sendError(client, "Failed to create group")
-		return
-	}
-
-	response := Message{
-		Type: MsgGroupCreated,
-		Payload: map[string]any{
-			"group": group,
-		},
-	}
-	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
-}
-
-func (h *Hub) handleMergeTickets(client *Client, room *models.Room, payload map[string]any) {
-	if room.Phase != models.PhaseBrainstorm {
-		h.sendError(client, "Can only merge tickets during brainstorming phase")
-		return
-	}
-
-	if !room.IsModeratorOrOwner(client.ID) {
-		h.sendError(client, "Only moderators can merge tickets")
-		return
-	}
-
-	groupID, _ := payload["group_id"].(string)
-	ticketIDsRaw, _ := payload["ticket_ids"].([]any)
-
-	ticketIDs := make([]string, 0, len(ticketIDsRaw))
-	for _, id := range ticketIDsRaw {
-		if tid, ok := id.(string); ok {
-			ticketIDs = append(ticketIDs, tid)
-		}
-	}
-
-	room.MergeTicketsToGroup(groupID, ticketIDs)
-
-	// Persist to database
-	if err := h.store.Update(room); err != nil {
-		h.sendError(client, "Failed to merge tickets")
-		return
-	}
-
-	response := Message{
-		Type: MsgTicketsMerged,
-		Payload: map[string]any{
-			"group_id":   groupID,
-			"ticket_ids": ticketIDs,
-		},
-	}
-	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
-}
-
-func (h *Hub) handleRemoveTicketFromGroup(client *Client, room *models.Room, payload map[string]any) {
-	if room.Phase != models.PhaseBrainstorm {
-		h.sendError(client, "Can only remove tickets from groups during brainstorming phase")
-		return
-	}
-
-	ticketID, _ := payload["ticket_id"].(string)
-	groupID, _ := payload["group_id"].(string)
-
-	if ticketID == "" || groupID == "" {
-		h.sendError(client, "ticket_id and group_id are required")
-		return
-	}
-
-	// Remove ticket from group
-	groupDeleted := room.RemoveTicketFromGroup(ticketID, groupID)
-
-	// Persist to database
-	if err := h.store.Update(room); err != nil {
-		h.sendError(client, "Failed to remove ticket from group")
-		return
-	}
-
-	response := Message{
-		Type: MsgTicketRemovedFromGroup,
-		Payload: map[string]any{
-			"ticket_id": ticketID,
-			"group_id":  groupID,
-		},
-	}
-	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
-
-	// If group was deleted, notify clients
-	if groupDeleted {
-		deleteResponse := Message{
-			Type: MsgGroupDeleted,
-			Payload: map[string]any{
-				"group_id": groupID,
-			},
-		}
-		deleteResponseBytes, _ := json.Marshal(deleteResponse)
-		h.BroadcastToRoom(room.ID, deleteResponseBytes)
-	}
 }
 
 func (h *Hub) handleVote(client *Client, room *models.Room, payload map[string]any) {
@@ -647,7 +531,6 @@ func (h *Hub) SendRoomState(client *Client, room *models.Room) {
 			"votes_per_user": room.VotesPerUser,
 			"participants":   room.Participants,
 			"tickets":        room.Tickets,
-			"ticket_groups":  room.TicketGroups,
 			"action_tickets": room.ActionTickets,
 		},
 	}

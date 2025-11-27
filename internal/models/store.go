@@ -69,7 +69,6 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 	room := &Room{
 		Participants:  make(map[string]*Participant),
 		Tickets:       make(map[string]*Ticket),
-		TicketGroups:  make(map[string]*TicketGroup),
 		ActionTickets: make(map[string]*ActionTicket),
 	}
 
@@ -103,7 +102,7 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	// Get tickets
 	ticketRows, err := s.db.Query(`
-		SELECT id, content, author_id, group_id, votes, voter_ids, created_at
+		SELECT id, content, author_id, deduplication_ticket_id, votes, voter_ids, created_at
 		FROM tickets WHERE room_id = $1
 	`, id)
 	if err != nil {
@@ -113,42 +112,19 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	for ticketRows.Next() {
 		var t Ticket
-		var groupID sql.NullString
+		var deduplicationTicketID sql.NullString
 		var voterIDsJSON []byte
-		err := ticketRows.Scan(&t.ID, &t.Content, &t.AuthorID, &groupID, &t.Votes, &voterIDsJSON, &t.CreatedAt)
+		err := ticketRows.Scan(&t.ID, &t.Content, &t.AuthorID, &deduplicationTicketID, &t.Votes, &voterIDsJSON, &t.CreatedAt)
 		if err != nil {
 			return nil, false
 		}
-		if groupID.Valid {
-			t.GroupID = groupID.String
+		if deduplicationTicketID.Valid {
+			t.DeduplicationTicketID = &deduplicationTicketID.String
 		}
 		if err := json.Unmarshal(voterIDsJSON, &t.VoterIDs); err != nil {
 			return nil, false
 		}
 		room.Tickets[t.ID] = &t
-	}
-
-	// Get ticket groups
-	groupRows, err := s.db.Query(`
-		SELECT id, name, ticket_ids
-		FROM ticket_groups WHERE room_id = $1
-	`, id)
-	if err != nil {
-		return nil, false
-	}
-	defer groupRows.Close()
-
-	for groupRows.Next() {
-		var tg TicketGroup
-		var ticketIDsJSON []byte
-		err := groupRows.Scan(&tg.ID, &tg.Name, &ticketIDsJSON)
-		if err != nil {
-			return nil, false
-		}
-		if err := json.Unmarshal(ticketIDsJSON, &tg.TicketIDs); err != nil {
-			return nil, false
-		}
-		room.TicketGroups[tg.ID] = &tg
 	}
 
 	// Get action tickets
@@ -204,7 +180,6 @@ func (s *RoomStore) List() []*Room {
 		// Initialize maps
 		room.Participants = make(map[string]*Participant)
 		room.Tickets = make(map[string]*Ticket)
-		room.TicketGroups = make(map[string]*TicketGroup)
 		room.ActionTickets = make(map[string]*ActionTicket)
 		rooms = append(rooms, &room)
 	}
@@ -232,7 +207,6 @@ func (s *RoomStore) ListByOwner(ownerID string) []*Room {
 		// Initialize maps
 		room.Participants = make(map[string]*Participant)
 		room.Tickets = make(map[string]*Ticket)
-		room.TicketGroups = make(map[string]*TicketGroup)
 		room.ActionTickets = make(map[string]*ActionTicket)
 		rooms = append(rooms, &room)
 	}
@@ -262,7 +236,6 @@ func (s *RoomStore) ListByParticipant(userID string) []*Room {
 		// Initialize maps
 		room.Participants = make(map[string]*Participant)
 		room.Tickets = make(map[string]*Ticket)
-		room.TicketGroups = make(map[string]*TicketGroup)
 		room.ActionTickets = make(map[string]*ActionTicket)
 		rooms = append(rooms, &room)
 	}
@@ -286,16 +259,12 @@ func (s *RoomStore) Update(room *Room) error {
 		return err
 	}
 
-	// Delete existing participants, tickets, groups, and actions
+	// Delete existing participants, tickets, and actions
 	_, err = tx.Exec(`DELETE FROM participants WHERE room_id = $1`, room.ID)
 	if err != nil {
 		return err
 	}
 	_, err = tx.Exec(`DELETE FROM tickets WHERE room_id = $1`, room.ID)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(`DELETE FROM ticket_groups WHERE room_id = $1`, room.ID)
 	if err != nil {
 		return err
 	}
@@ -324,31 +293,10 @@ func (s *RoomStore) Update(room *Room) error {
 			room.RUnlock()
 			return err
 		}
-		var groupID *string
-		if ticket.GroupID != "" {
-			groupID = &ticket.GroupID
-		}
 		_, err = tx.Exec(`
-			INSERT INTO tickets (id, room_id, content, author_id, group_id, votes, voter_ids, created_at)
+			INSERT INTO tickets (id, room_id, content, author_id, deduplication_ticket_id, votes, voter_ids, created_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		`, ticket.ID, room.ID, ticket.Content, ticket.AuthorID, groupID, ticket.Votes, voterIDsJSON, ticket.CreatedAt)
-		if err != nil {
-			room.RUnlock()
-			return err
-		}
-	}
-
-	// Insert ticket groups
-	for _, group := range room.TicketGroups {
-		ticketIDsJSON, err := json.Marshal(group.TicketIDs)
-		if err != nil {
-			room.RUnlock()
-			return err
-		}
-		_, err = tx.Exec(`
-			INSERT INTO ticket_groups (id, room_id, name, ticket_ids)
-			VALUES ($1, $2, $3, $4)
-		`, group.ID, room.ID, group.Name, ticketIDsJSON)
+		`, ticket.ID, room.ID, ticket.Content, ticket.AuthorID, ticket.DeduplicationTicketID, ticket.Votes, voterIDsJSON, ticket.CreatedAt)
 		if err != nil {
 			room.RUnlock()
 			return err

@@ -41,13 +41,13 @@ type Participant struct {
 
 // Ticket represents a retrospective item
 type Ticket struct {
-	ID        string    `json:"id"`
-	Content   string    `json:"content"`
-	AuthorID  string    `json:"author_id"`
-	GroupID   string    `json:"group_id,omitempty"`
-	Votes     int       `json:"votes"`
-	VoterIDs  []string  `json:"voter_ids"`
-	CreatedAt time.Time `json:"created_at"`
+	ID                    string    `json:"id"`
+	Content               string    `json:"content"`
+	AuthorID              string    `json:"author_id"`
+	DeduplicationTicketID *string   `json:"deduplication_ticket_id,omitempty"`
+	Votes                 int       `json:"votes"`
+	VoterIDs              []string  `json:"voter_ids"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 // ActionTicket represents an action item from the discussion phase
@@ -59,13 +59,6 @@ type ActionTicket struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-// TicketGroup represents a group of merged tickets
-type TicketGroup struct {
-	ID        string   `json:"id"`
-	Name      string   `json:"name"`
-	TicketIDs []string `json:"ticket_ids"`
-}
-
 // Room represents a retrospective room
 type Room struct {
 	ID            string                   `json:"id"`
@@ -75,7 +68,6 @@ type Room struct {
 	VotesPerUser  int                      `json:"votes_per_user"`
 	Participants  map[string]*Participant  `json:"participants"`
 	Tickets       map[string]*Ticket       `json:"tickets"`
-	TicketGroups  map[string]*TicketGroup  `json:"ticket_groups"`
 	ActionTickets map[string]*ActionTicket `json:"action_tickets"`
 	CreatedAt     time.Time                `json:"created_at"`
 	mu            sync.RWMutex
@@ -91,7 +83,6 @@ func NewRoom(id, name, ownerID string, votesPerUser int) *Room {
 		VotesPerUser:  votesPerUser,
 		Participants:  make(map[string]*Participant),
 		Tickets:       make(map[string]*Ticket),
-		TicketGroups:  make(map[string]*TicketGroup),
 		ActionTickets: make(map[string]*ActionTicket),
 		CreatedAt:     time.Now(),
 	}
@@ -184,57 +175,6 @@ func (r *Room) GetTicket(ticketID string) (*Ticket, bool) {
 	defer r.mu.RUnlock()
 	t, ok := r.Tickets[ticketID]
 	return t, ok
-}
-
-// AddGroup adds a new ticket group
-func (r *Room) AddGroup(group *TicketGroup) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.TicketGroups[group.ID] = group
-}
-
-// MergeTicketsToGroup merges tickets into a group
-func (r *Room) MergeTicketsToGroup(groupID string, ticketIDs []string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if group, ok := r.TicketGroups[groupID]; ok {
-		for _, tid := range ticketIDs {
-			if ticket, tok := r.Tickets[tid]; tok {
-				ticket.GroupID = groupID
-				group.TicketIDs = append(group.TicketIDs, tid)
-			}
-		}
-	}
-}
-
-// RemoveTicketFromGroup removes a ticket from a group and returns true if the group was deleted
-func (r *Room) RemoveTicketFromGroup(ticketID, groupID string) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Clear the ticket's group_id
-	if ticket, ok := r.Tickets[ticketID]; ok {
-		ticket.GroupID = ""
-	}
-
-	// Remove ticket from group's ticket list
-	if group, ok := r.TicketGroups[groupID]; ok {
-		newTicketIDs := make([]string, 0)
-		for _, tid := range group.TicketIDs {
-			if tid != ticketID {
-				newTicketIDs = append(newTicketIDs, tid)
-			}
-		}
-		group.TicketIDs = newTicketIDs
-
-		// Delete group if empty
-		if len(group.TicketIDs) == 0 {
-			delete(r.TicketGroups, groupID)
-			return true
-		}
-	}
-
-	return false
 }
 
 // AddActionTicket adds an action item
