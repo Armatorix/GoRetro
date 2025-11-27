@@ -14,8 +14,11 @@ import (
 var upgrader = gorillaWS.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	// CheckOrigin allows all origins for development.
+	// TODO: In production, this should validate against a list of allowed origins
+	// or use the Origin header to check against the request's Host.
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins in development
+		return true
 	},
 }
 
