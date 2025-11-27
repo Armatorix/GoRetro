@@ -23,6 +23,11 @@ services:
       - DATABASE_URL=postgres://goretro:goretro@postgres:5432/goretro?sslmode=disable
     depends_on:
       - postgres
+    develop:
+      watch:
+        - path: ./
+          action: rebuild
+          target: /app
 
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.5.1
