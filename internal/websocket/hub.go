@@ -370,6 +370,7 @@ func (h *Hub) handleVote(client *Client, room *models.Room, payload map[string]a
 		Payload: map[string]any{
 			"ticket_id":  ticketID,
 			"votes":      ticket.Votes,
+			"voter_ids":  ticket.VoterIDs,
 			"user_id":    client.ID,
 			"votes_used": participant.VotesUsed,
 		},
@@ -405,6 +406,7 @@ func (h *Hub) handleUnvote(client *Client, room *models.Room, payload map[string
 		Payload: map[string]any{
 			"ticket_id":  ticketID,
 			"votes":      ticket.Votes,
+			"voter_ids":  ticket.VoterIDs,
 			"user_id":    client.ID,
 			"votes_used": participant.VotesUsed,
 		},

@@ -331,6 +331,9 @@
         function handleVoteUpdated(payload) {
             if (state.tickets[payload.ticket_id]) {
                 state.tickets[payload.ticket_id].votes = payload.votes;
+                if (payload.voter_ids) {
+                    state.tickets[payload.ticket_id].voter_ids = payload.voter_ids;
+                }
             }
             if (payload.user_id === userId) {
                 state.votesUsed = payload.votes_used;
