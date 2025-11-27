@@ -1,0 +1,664 @@
+{{define "room.html"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Room.Name}} - GoRetro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#10B981',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .ticket {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .ticket:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .phase-indicator {
+            transition: all 0.3s;
+        }
+        .phase-indicator.active {
+            background-color: #4F46E5;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    {{template "nav" .}}
+    
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="room-app" data-room-id="{{.Room.ID}}" data-user-id="{{.User.ID}}">
+            <!-- Room Header -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">{{.Room.Name}}</h1>
+                        <p class="text-sm text-gray-500">Share link: <span class="font-mono bg-gray-100 px-2 py-1 rounded" id="room-link"></span></p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span id="connection-status" class="text-sm px-2 py-1 rounded bg-gray-200 text-gray-600">Connecting...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase Indicator -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <div class="flex space-x-2">
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="TICKETING" id="phase-TICKETING">
+                            1. Ticketing
+                        </button>
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="BRAINSTORMING" id="phase-BRAINSTORMING">
+                            2. Brainstorming
+                        </button>
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="VOTING" id="phase-VOTING">
+                            3. Voting
+                        </button>
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="DISCUSSION" id="phase-DISCUSSION">
+                            4. Discussion
+                        </button>
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="SUMMARY" id="phase-SUMMARY">
+                            5. Summary
+                        </button>
+                    </div>
+                    <div id="votes-info" class="text-sm text-gray-600 hidden">
+                        Votes used: <span id="votes-used">0</span> / <span id="votes-total">{{.Room.VotesPerUser}}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="grid lg:grid-cols-4 gap-6">
+                <!-- Tickets Panel -->
+                <div class="lg:col-span-3">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Tickets</h2>
+                            <button id="add-ticket-btn" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors text-sm">
+                                + Add Ticket
+                            </button>
+                        </div>
+                        
+                        <!-- Add Ticket Form -->
+                        <div id="add-ticket-form" class="hidden mb-4">
+                            <div class="border rounded-md p-4 bg-gray-50">
+                                <textarea id="ticket-content" rows="3" placeholder="What's on your mind?" 
+                                          class="w-full border rounded-md p-2 focus:border-primary focus:ring-primary"></textarea>
+                                <div class="flex justify-end space-x-2 mt-2">
+                                    <button id="cancel-ticket" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                                    <button id="submit-ticket" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700">Submit</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tickets Grid -->
+                        <div id="tickets-container" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Tickets will be rendered here -->
+                        </div>
+                        
+                        <!-- Groups Container (for brainstorming phase) -->
+                        <div id="groups-container" class="hidden mt-6">
+                            <h3 class="text-md font-semibold text-gray-700 mb-3">Groups</h3>
+                            <div id="groups-list" class="space-y-4">
+                                <!-- Groups will be rendered here -->
+                            </div>
+                            <button id="create-group-btn" class="mt-4 border-2 border-dashed border-gray-300 rounded-md p-4 w-full text-gray-500 hover:border-primary hover:text-primary transition-colors hidden">
+                                + Create Group
+                            </button>
+                        </div>
+                        
+                        <!-- Action Tickets (for discussion phase) -->
+                        <div id="actions-container" class="hidden mt-6">
+                            <h3 class="text-md font-semibold text-gray-700 mb-3">Action Items</h3>
+                            <div id="actions-list" class="space-y-2">
+                                <!-- Action tickets will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Participants Panel -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Participants</h2>
+                        <ul id="participants-list" class="space-y-2">
+                            <!-- Participants will be rendered here -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Toast Notification -->
+        <div id="toast" class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-full opacity-0 transition-all duration-300 z-50">
+            <span id="toast-message"></span>
+        </div>
+        
+        <!-- Create Group Modal -->
+        <div id="create-group-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Create New Group</h3>
+                <input type="text" id="group-name-input" placeholder="Group name" 
+                       class="w-full border rounded-md p-2 mb-4 focus:border-primary focus:ring-primary">
+                <div class="flex justify-end space-x-2">
+                    <button id="cancel-group-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                    <button id="confirm-group-modal" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700">Create</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Confirm Delete Modal -->
+        <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Ticket</h3>
+                <p class="text-gray-600 mb-4">Are you sure you want to delete this ticket? This action cannot be undone.</p>
+                <input type="hidden" id="delete-ticket-id">
+                <div class="flex justify-end space-x-2">
+                    <button id="cancel-delete-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
+                    <button id="confirm-delete-modal" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">Delete</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    (function() {
+        const roomApp = document.getElementById('room-app');
+        const roomId = roomApp.dataset.roomId;
+        const userId = roomApp.dataset.userId;
+        
+        // Set room link
+        document.getElementById('room-link').textContent = window.location.href;
+        
+        // State
+        let state = {
+            phase: 'TICKETING',
+            tickets: {},
+            groups: {},
+            actions: {},
+            participants: {},
+            votesPerUser: 3,
+            votesUsed: 0,
+            isModeratorOrOwner: false
+        };
+        
+        // WebSocket connection
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws/${roomId}`);
+        
+        ws.onopen = function() {
+            document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-green-100 text-green-800';
+            document.getElementById('connection-status').textContent = 'Connected';
+        };
+        
+        ws.onclose = function() {
+            document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800';
+            document.getElementById('connection-status').textContent = 'Disconnected';
+        };
+        
+        ws.onerror = function() {
+            document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800';
+            document.getElementById('connection-status').textContent = 'Error';
+        };
+        
+        ws.onmessage = function(event) {
+            const msg = JSON.parse(event.data);
+            handleMessage(msg);
+        };
+        
+        function handleMessage(msg) {
+            switch(msg.type) {
+                case 'room_state':
+                    handleRoomState(msg.payload);
+                    break;
+                case 'ticket_added':
+                    handleTicketAdded(msg.payload);
+                    break;
+                case 'ticket_updated':
+                    handleTicketUpdated(msg.payload);
+                    break;
+                case 'ticket_deleted':
+                    handleTicketDeleted(msg.payload);
+                    break;
+                case 'group_created':
+                    handleGroupCreated(msg.payload);
+                    break;
+                case 'tickets_merged':
+                    handleTicketsMerged(msg.payload);
+                    break;
+                case 'vote_updated':
+                    handleVoteUpdated(msg.payload);
+                    break;
+                case 'action_added':
+                    handleActionAdded(msg.payload);
+                    break;
+                case 'phase_changed':
+                    handlePhaseChanged(msg.payload);
+                    break;
+                case 'user_joined':
+                    handleUserJoined(msg.payload);
+                    break;
+                case 'user_left':
+                    handleUserLeft(msg.payload);
+                    break;
+                case 'role_changed':
+                    handleRoleChanged(msg.payload);
+                    break;
+                case 'user_removed':
+                    handleUserRemoved(msg.payload);
+                    break;
+                case 'error':
+                    showToast(msg.payload.message);
+                    break;
+            }
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            toastMessage.textContent = message;
+            toast.classList.remove('translate-y-full', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-full', 'opacity-0');
+            }, 3000);
+        }
+        
+        function handleRoomState(payload) {
+            state.phase = payload.phase;
+            state.votesPerUser = payload.votes_per_user;
+            state.tickets = payload.tickets || {};
+            state.groups = payload.ticket_groups || {};
+            state.actions = payload.action_tickets || {};
+            state.participants = payload.participants || {};
+            
+            // Check if current user is moderator/owner
+            const currentParticipant = state.participants[userId];
+            if (currentParticipant) {
+                state.isModeratorOrOwner = currentParticipant.role === 'owner' || currentParticipant.role === 'moderator';
+                state.votesUsed = currentParticipant.votes_used;
+            }
+            
+            renderAll();
+        }
+        
+        function handleTicketAdded(payload) {
+            state.tickets[payload.ticket.id] = payload.ticket;
+            renderTickets();
+        }
+        
+        function handleTicketUpdated(payload) {
+            state.tickets[payload.ticket.id] = payload.ticket;
+            renderTickets();
+        }
+        
+        function handleTicketDeleted(payload) {
+            delete state.tickets[payload.ticket_id];
+            renderTickets();
+        }
+        
+        function handleGroupCreated(payload) {
+            state.groups[payload.group.id] = payload.group;
+            renderGroups();
+        }
+        
+        function handleTicketsMerged(payload) {
+            payload.ticket_ids.forEach(tid => {
+                if (state.tickets[tid]) {
+                    state.tickets[tid].group_id = payload.group_id;
+                }
+            });
+            if (state.groups[payload.group_id]) {
+                state.groups[payload.group_id].ticket_ids = [
+                    ...state.groups[payload.group_id].ticket_ids,
+                    ...payload.ticket_ids
+                ];
+            }
+            renderAll();
+        }
+        
+        function handleVoteUpdated(payload) {
+            if (state.tickets[payload.ticket_id]) {
+                state.tickets[payload.ticket_id].votes = payload.votes;
+            }
+            if (payload.user_id === userId) {
+                state.votesUsed = payload.votes_used;
+            }
+            renderTickets();
+            renderVotesInfo();
+        }
+        
+        function handleActionAdded(payload) {
+            state.actions[payload.action.id] = payload.action;
+            renderActions();
+        }
+        
+        function handlePhaseChanged(payload) {
+            state.phase = payload.phase;
+            renderAll();
+        }
+        
+        function handleUserJoined(payload) {
+            state.participants[payload.user.id] = {
+                user: payload.user,
+                role: 'participant',
+                votes_used: 0
+            };
+            renderParticipants();
+        }
+        
+        function handleUserLeft(payload) {
+            delete state.participants[payload.user_id];
+            renderParticipants();
+        }
+        
+        function handleRoleChanged(payload) {
+            if (state.participants[payload.user_id]) {
+                state.participants[payload.user_id].role = payload.role;
+            }
+            if (payload.user_id === userId) {
+                state.isModeratorOrOwner = payload.role === 'owner' || payload.role === 'moderator';
+            }
+            renderParticipants();
+            renderAll();
+        }
+        
+        function handleUserRemoved(payload) {
+            delete state.participants[payload.user_id];
+            if (payload.user_id === userId) {
+                window.location.href = '/';
+            }
+            renderParticipants();
+        }
+        
+        function renderAll() {
+            renderPhaseIndicator();
+            renderTickets();
+            renderGroups();
+            renderActions();
+            renderParticipants();
+            renderVotesInfo();
+            updateUIForPhase();
+        }
+        
+        function renderPhaseIndicator() {
+            document.querySelectorAll('.phase-indicator').forEach(el => {
+                el.classList.remove('active', 'bg-gray-200', 'text-gray-600');
+                if (el.dataset.phase === state.phase) {
+                    el.classList.add('active');
+                } else {
+                    el.classList.add('bg-gray-200', 'text-gray-600');
+                }
+            });
+            
+            // Make phase buttons clickable for moderators
+            if (state.isModeratorOrOwner) {
+                document.querySelectorAll('.phase-indicator').forEach(el => {
+                    el.style.cursor = 'pointer';
+                    el.onclick = function() {
+                        send({ type: 'set_phase', payload: { phase: el.dataset.phase } });
+                    };
+                });
+            }
+        }
+        
+        function renderVotesInfo() {
+            const votesInfo = document.getElementById('votes-info');
+            if (state.phase === 'VOTING') {
+                votesInfo.classList.remove('hidden');
+                document.getElementById('votes-used').textContent = state.votesUsed;
+                document.getElementById('votes-total').textContent = state.votesPerUser;
+            } else {
+                votesInfo.classList.add('hidden');
+            }
+        }
+        
+        function renderTickets() {
+            const container = document.getElementById('tickets-container');
+            const tickets = Object.values(state.tickets);
+            
+            if (tickets.length === 0) {
+                container.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8">No tickets yet. Be the first to add one!</p>';
+                return;
+            }
+            
+            // Sort by votes in voting/discussion/summary phases
+            if (['VOTING', 'DISCUSSION', 'SUMMARY'].includes(state.phase)) {
+                tickets.sort((a, b) => (b.votes || 0) - (a.votes || 0));
+            }
+            
+            container.innerHTML = tickets.map(ticket => {
+                const isOwn = ticket.author_id === userId;
+                const canEdit = isOwn || state.isModeratorOrOwner;
+                const canVote = state.phase === 'VOTING';
+                const hasVoted = ticket.voter_ids && ticket.voter_ids.includes(userId);
+                
+                return `
+                    <div class="ticket bg-gray-50 border rounded-md p-4" data-ticket-id="${ticket.id}">
+                        <p class="text-gray-800 mb-3">${escapeHtml(ticket.content)}</p>
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="text-gray-500">${getParticipantName(ticket.author_id)}</span>
+                            <div class="flex items-center space-x-2">
+                                ${canVote ? `
+                                    <button class="vote-btn ${hasVoted ? 'text-primary' : 'text-gray-400'} hover:text-primary" 
+                                            onclick="toggleVote('${ticket.id}', ${hasVoted})">
+                                        <span class="font-medium">${ticket.votes || 0}</span>
+                                        <svg class="w-5 h-5 inline" fill="${hasVoted ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                                        </svg>
+                                    </button>
+                                ` : `<span class="text-gray-400">${ticket.votes || 0} votes</span>`}
+                                ${canEdit && state.phase === 'TICKETING' ? `
+                                    <button class="text-red-400 hover:text-red-600" onclick="deleteTicket('${ticket.id}')">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderGroups() {
+            const container = document.getElementById('groups-container');
+            const groupsList = document.getElementById('groups-list');
+            const createBtn = document.getElementById('create-group-btn');
+            
+            if (state.phase !== 'BRAINSTORMING') {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            
+            if (state.isModeratorOrOwner) {
+                createBtn.classList.remove('hidden');
+            }
+            
+            const groups = Object.values(state.groups);
+            if (groups.length === 0) {
+                groupsList.innerHTML = '<p class="text-gray-500 text-center py-4">No groups yet.</p>';
+                return;
+            }
+            
+            groupsList.innerHTML = groups.map(group => `
+                <div class="border rounded-md p-4 bg-blue-50" data-group-id="${group.id}">
+                    <h4 class="font-medium text-gray-800 mb-2">${escapeHtml(group.name)}</h4>
+                    <div class="text-sm text-gray-600">${group.ticket_ids ? group.ticket_ids.length : 0} tickets</div>
+                </div>
+            `).join('');
+        }
+        
+        function renderActions() {
+            const container = document.getElementById('actions-container');
+            const list = document.getElementById('actions-list');
+            
+            if (!['DISCUSSION', 'SUMMARY'].includes(state.phase)) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            
+            const actions = Object.values(state.actions);
+            if (actions.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center py-4">No action items yet.</p>';
+                return;
+            }
+            
+            list.innerHTML = actions.map(action => `
+                <div class="border rounded-md p-3 bg-green-50">
+                    <p class="text-gray-800">${escapeHtml(action.content)}</p>
+                    ${action.assignee_id ? `<span class="text-sm text-gray-500">Assigned to: ${getParticipantName(action.assignee_id)}</span>` : ''}
+                </div>
+            `).join('');
+        }
+        
+        function renderParticipants() {
+            const list = document.getElementById('participants-list');
+            const participants = Object.values(state.participants);
+            
+            list.innerHTML = participants.map(p => {
+                const roleColor = p.role === 'owner' ? 'text-yellow-600' : p.role === 'moderator' ? 'text-blue-600' : 'text-gray-600';
+                return `
+                    <li class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
+                                ${(p.user.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div class="ml-3">
+                                <span class="text-gray-800 text-sm">${escapeHtml(p.user.name || p.user.email)}</span>
+                                <span class="text-xs ${roleColor} ml-1">(${p.role})</span>
+                            </div>
+                        </div>
+                    </li>
+                `;
+            }).join('');
+        }
+        
+        function updateUIForPhase() {
+            const addTicketBtn = document.getElementById('add-ticket-btn');
+            const addTicketForm = document.getElementById('add-ticket-form');
+            
+            // Show/hide add ticket button based on phase
+            if (state.phase === 'TICKETING') {
+                addTicketBtn.classList.remove('hidden');
+            } else {
+                addTicketBtn.classList.add('hidden');
+                addTicketForm.classList.add('hidden');
+            }
+        }
+        
+        function getParticipantName(id) {
+            const p = state.participants[id];
+            if (p) {
+                return p.user.name || p.user.email || 'Anonymous';
+            }
+            return 'Unknown';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function send(msg) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(msg));
+            }
+        }
+        
+        // Event Handlers
+        document.getElementById('add-ticket-btn').onclick = function() {
+            document.getElementById('add-ticket-form').classList.remove('hidden');
+            document.getElementById('ticket-content').focus();
+        };
+        
+        document.getElementById('cancel-ticket').onclick = function() {
+            document.getElementById('add-ticket-form').classList.add('hidden');
+            document.getElementById('ticket-content').value = '';
+        };
+        
+        document.getElementById('submit-ticket').onclick = function() {
+            const content = document.getElementById('ticket-content').value.trim();
+            if (content) {
+                send({ type: 'add_ticket', payload: { content: content } });
+                document.getElementById('ticket-content').value = '';
+                document.getElementById('add-ticket-form').classList.add('hidden');
+            }
+        };
+        
+        document.getElementById('create-group-btn').onclick = function() {
+            const modal = document.getElementById('create-group-modal');
+            const input = document.getElementById('group-name-input');
+            input.value = '';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            input.focus();
+        };
+        
+        document.getElementById('cancel-group-modal').onclick = function() {
+            const modal = document.getElementById('create-group-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        
+        document.getElementById('confirm-group-modal').onclick = function() {
+            const modal = document.getElementById('create-group-modal');
+            const name = document.getElementById('group-name-input').value.trim();
+            if (name) {
+                send({ type: 'create_group', payload: { name: name } });
+            }
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        
+        document.getElementById('cancel-delete-modal').onclick = function() {
+            const modal = document.getElementById('delete-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        
+        document.getElementById('confirm-delete-modal').onclick = function() {
+            const modal = document.getElementById('delete-modal');
+            const ticketId = document.getElementById('delete-ticket-id').value;
+            send({ type: 'delete_ticket', payload: { ticket_id: ticketId } });
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        
+        // Global functions for inline event handlers
+        window.toggleVote = function(ticketId, hasVoted) {
+            if (hasVoted) {
+                send({ type: 'unvote', payload: { ticket_id: ticketId } });
+            } else {
+                send({ type: 'vote', payload: { ticket_id: ticketId } });
+            }
+        };
+        
+        window.deleteTicket = function(ticketId) {
+            const modal = document.getElementById('delete-modal');
+            document.getElementById('delete-ticket-id').value = ticketId;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+    })();
+    </script>
+</body>
+</html>
+{{end}}
