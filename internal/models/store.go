@@ -51,9 +51,20 @@ func (s *RoomStore) Create(room *Room) error {
 	room.RLock()
 	for _, participant := range room.Participants {
 		_, err = tx.Exec(`
-			INSERT INTO participants (room_id, user_id, user_email, user_name, role, votes_used)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, room.ID, participant.User.ID, participant.User.Email, participant.User.Name, participant.Role, participant.VotesUsed)
+			INSERT INTO participants (room_id, user_id, user_email, user_name, role, status, votes_used)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`, room.ID, participant.User.ID, participant.User.Email, participant.User.Name, participant.Role, participant.Status, participant.VotesUsed)
+		if err != nil {
+			room.RUnlock()
+			return err
+		}
+	}
+	// Insert pending participants
+	for _, participant := range room.PendingParticipants {
+		_, err = tx.Exec(`
+			INSERT INTO participants (room_id, user_id, user_email, user_name, role, status, votes_used)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`, room.ID, participant.User.ID, participant.User.Email, participant.User.Name, participant.Role, participant.Status, participant.VotesUsed)
 		if err != nil {
 			room.RUnlock()
 			return err
@@ -67,9 +78,10 @@ func (s *RoomStore) Create(room *Room) error {
 // Get retrieves a room by ID
 func (s *RoomStore) Get(id string) (*Room, bool) {
 	room := &Room{
-		Participants:  make(map[string]*Participant),
-		Tickets:       make(map[string]*Ticket),
-		ActionTickets: make(map[string]*ActionTicket),
+		Participants:        make(map[string]*Participant),
+		PendingParticipants: make(map[string]*Participant),
+		Tickets:             make(map[string]*Ticket),
+		ActionTickets:       make(map[string]*ActionTicket),
 	}
 
 	// Get room data
@@ -83,7 +95,7 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	// Get participants
 	rows, err := s.db.Query(`
-		SELECT user_id, user_email, user_name, role, votes_used
+		SELECT user_id, user_email, user_name, role, status, votes_used
 		FROM participants WHERE room_id = $1
 	`, id)
 	if err != nil {
@@ -93,11 +105,15 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	for rows.Next() {
 		var p Participant
-		err := rows.Scan(&p.User.ID, &p.User.Email, &p.User.Name, &p.Role, &p.VotesUsed)
+		err := rows.Scan(&p.User.ID, &p.User.Email, &p.User.Name, &p.Role, &p.Status, &p.VotesUsed)
 		if err != nil {
 			return nil, false
 		}
-		room.Participants[p.User.ID] = &p
+		if p.Status == StatusPending {
+			room.PendingParticipants[p.User.ID] = &p
+		} else {
+			room.Participants[p.User.ID] = &p
+		}
 	}
 
 	// Get tickets
@@ -179,6 +195,7 @@ func (s *RoomStore) List() []*Room {
 		}
 		// Initialize maps
 		room.Participants = make(map[string]*Participant)
+		room.PendingParticipants = make(map[string]*Participant)
 		room.Tickets = make(map[string]*Ticket)
 		room.ActionTickets = make(map[string]*ActionTicket)
 		rooms = append(rooms, &room)
@@ -206,6 +223,7 @@ func (s *RoomStore) ListByOwner(ownerID string) []*Room {
 		}
 		// Initialize maps
 		room.Participants = make(map[string]*Participant)
+		room.PendingParticipants = make(map[string]*Participant)
 		room.Tickets = make(map[string]*Ticket)
 		room.ActionTickets = make(map[string]*ActionTicket)
 		rooms = append(rooms, &room)
@@ -219,7 +237,7 @@ func (s *RoomStore) ListByParticipant(userID string) []*Room {
 		SELECT DISTINCT r.id, r.name, r.owner_id, r.phase, r.votes_per_user, r.created_at
 		FROM rooms r
 		INNER JOIN participants p ON r.id = p.room_id
-		WHERE p.user_id = $1
+		WHERE p.user_id = $1 AND p.status = 'approved'
 	`, userID)
 	if err != nil {
 		return []*Room{}
@@ -235,6 +253,7 @@ func (s *RoomStore) ListByParticipant(userID string) []*Room {
 		}
 		// Initialize maps
 		room.Participants = make(map[string]*Participant)
+		room.PendingParticipants = make(map[string]*Participant)
 		room.Tickets = make(map[string]*Ticket)
 		room.ActionTickets = make(map[string]*ActionTicket)
 		rooms = append(rooms, &room)
@@ -277,9 +296,21 @@ func (s *RoomStore) Update(room *Room) error {
 	room.RLock()
 	for _, participant := range room.Participants {
 		_, err = tx.Exec(`
-			INSERT INTO participants (room_id, user_id, user_email, user_name, role, votes_used)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, room.ID, participant.User.ID, participant.User.Email, participant.User.Name, participant.Role, participant.VotesUsed)
+			INSERT INTO participants (room_id, user_id, user_email, user_name, role, status, votes_used)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`, room.ID, participant.User.ID, participant.User.Email, participant.User.Name, participant.Role, participant.Status, participant.VotesUsed)
+		if err != nil {
+			room.RUnlock()
+			return err
+		}
+	}
+
+	// Insert pending participants
+	for _, participant := range room.PendingParticipants {
+		_, err = tx.Exec(`
+			INSERT INTO participants (room_id, user_id, user_email, user_name, role, status, votes_used)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`, room.ID, participant.User.ID, participant.User.Email, participant.User.Name, participant.Role, participant.Status, participant.VotesUsed)
 		if err != nil {
 			room.RUnlock()
 			return err

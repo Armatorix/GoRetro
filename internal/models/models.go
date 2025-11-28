@@ -25,6 +25,14 @@ const (
 	RoleParticipant Role = "participant"
 )
 
+// ParticipantStatus represents the approval status of a participant
+type ParticipantStatus string
+
+const (
+	StatusPending  ParticipantStatus = "pending"
+	StatusApproved ParticipantStatus = "approved"
+)
+
 // User represents a participant in the retrospective
 type User struct {
 	ID    string `json:"id"`
@@ -34,9 +42,10 @@ type User struct {
 
 // Participant represents a user's participation in a room
 type Participant struct {
-	User      User `json:"user"`
-	Role      Role `json:"role"`
-	VotesUsed int  `json:"votes_used"`
+	User      User              `json:"user"`
+	Role      Role              `json:"role"`
+	Status    ParticipantStatus `json:"status"`
+	VotesUsed int               `json:"votes_used"`
 }
 
 // Ticket represents a retrospective item
@@ -62,30 +71,32 @@ type ActionTicket struct {
 
 // Room represents a retrospective room
 type Room struct {
-	ID            string                   `json:"id"`
-	Name          string                   `json:"name"`
-	OwnerID       string                   `json:"owner_id"`
-	Phase         Phase                    `json:"phase"`
-	VotesPerUser  int                      `json:"votes_per_user"`
-	Participants  map[string]*Participant  `json:"participants"`
-	Tickets       map[string]*Ticket       `json:"tickets"`
-	ActionTickets map[string]*ActionTicket `json:"action_tickets"`
-	CreatedAt     time.Time                `json:"created_at"`
-	mu            sync.RWMutex
+	ID                  string                   `json:"id"`
+	Name                string                   `json:"name"`
+	OwnerID             string                   `json:"owner_id"`
+	Phase               Phase                    `json:"phase"`
+	VotesPerUser        int                      `json:"votes_per_user"`
+	Participants        map[string]*Participant  `json:"participants"`
+	PendingParticipants map[string]*Participant  `json:"pending_participants"`
+	Tickets             map[string]*Ticket       `json:"tickets"`
+	ActionTickets       map[string]*ActionTicket `json:"action_tickets"`
+	CreatedAt           time.Time                `json:"created_at"`
+	mu                  sync.RWMutex
 }
 
 // NewRoom creates a new room with the given settings
 func NewRoom(id, name, ownerID string, votesPerUser int) *Room {
 	return &Room{
-		ID:            id,
-		Name:          name,
-		OwnerID:       ownerID,
-		Phase:         PhaseTicketing,
-		VotesPerUser:  votesPerUser,
-		Participants:  make(map[string]*Participant),
-		Tickets:       make(map[string]*Ticket),
-		ActionTickets: make(map[string]*ActionTicket),
-		CreatedAt:     time.Now(),
+		ID:                  id,
+		Name:                name,
+		OwnerID:             ownerID,
+		Phase:               PhaseTicketing,
+		VotesPerUser:        votesPerUser,
+		Participants:        make(map[string]*Participant),
+		PendingParticipants: make(map[string]*Participant),
+		Tickets:             make(map[string]*Ticket),
+		ActionTickets:       make(map[string]*ActionTicket),
+		CreatedAt:           time.Now(),
 	}
 }
 
@@ -110,13 +121,19 @@ func (r *Room) RUnlock() {
 }
 
 // AddParticipant adds a user to the room
-func (r *Room) AddParticipant(user User, role Role) {
+func (r *Room) AddParticipant(user User, role Role, status ParticipantStatus) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.Participants[user.ID] = &Participant{
+	participant := &Participant{
 		User:      user,
 		Role:      role,
+		Status:    status,
 		VotesUsed: 0,
+	}
+	if status == StatusPending {
+		r.PendingParticipants[user.ID] = participant
+	} else {
+		r.Participants[user.ID] = participant
 	}
 }
 
@@ -125,6 +142,39 @@ func (r *Room) RemoveParticipant(userID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.Participants, userID)
+	delete(r.PendingParticipants, userID)
+}
+
+// ApproveParticipant moves a pending participant to approved participants
+func (r *Room) ApproveParticipant(userID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if p, ok := r.PendingParticipants[userID]; ok {
+		p.Status = StatusApproved
+		r.Participants[userID] = p
+		delete(r.PendingParticipants, userID)
+		return true
+	}
+	return false
+}
+
+// RejectParticipant removes a pending participant from the room
+func (r *Room) RejectParticipant(userID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.PendingParticipants[userID]; ok {
+		delete(r.PendingParticipants, userID)
+		return true
+	}
+	return false
+}
+
+// GetPendingParticipant returns a pending participant by ID
+func (r *Room) GetPendingParticipant(userID string) (*Participant, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	p, ok := r.PendingParticipants[userID]
+	return p, ok
 }
 
 // GetParticipant returns a participant by ID

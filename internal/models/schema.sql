@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS participants (
     user_email VARCHAR(255) NOT NULL,
     user_name VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'approved',
     votes_used INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (room_id, user_id),
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE

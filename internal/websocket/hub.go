@@ -150,6 +150,10 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleSetRole(client, room, message.Payload)
 	case MsgRemoveUser:
 		h.handleRemoveUser(client, room, message.Payload)
+	case MsgApproveParticipant:
+		h.handleApproveParticipant(client, room, message.Payload)
+	case MsgRejectParticipant:
+		h.handleRejectParticipant(client, room, message.Payload)
 	default:
 		h.sendError(client, "Unknown message type")
 	}
@@ -609,6 +613,67 @@ func (h *Hub) handleRemoveUser(client *Client, room *models.Room, payload map[st
 	h.BroadcastToRoom(room.ID, responseBytes)
 }
 
+func (h *Hub) handleApproveParticipant(client *Client, room *models.Room, payload map[string]any) {
+	if !room.IsModeratorOrOwner(client.ID) {
+		h.sendError(client, "Only moderator or owner can approve participants")
+		return
+	}
+
+	userID, _ := payload["user_id"].(string)
+
+	if !room.ApproveParticipant(userID) {
+		h.sendError(client, "Participant not found in pending list")
+		return
+	}
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to approve participant")
+		return
+	}
+
+	participant, _ := room.GetParticipant(userID)
+
+	response := Message{
+		Type: MsgParticipantApproved,
+		Payload: map[string]any{
+			"user_id":     userID,
+			"participant": participant,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
+func (h *Hub) handleRejectParticipant(client *Client, room *models.Room, payload map[string]any) {
+	if !room.IsModeratorOrOwner(client.ID) {
+		h.sendError(client, "Only moderator or owner can reject participants")
+		return
+	}
+
+	userID, _ := payload["user_id"].(string)
+
+	if !room.RejectParticipant(userID) {
+		h.sendError(client, "Participant not found in pending list")
+		return
+	}
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to reject participant")
+		return
+	}
+
+	response := Message{
+		Type: MsgParticipantRejected,
+		Payload: map[string]any{
+			"user_id": userID,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
 func (h *Hub) sendError(client *Client, message string) {
 	response := Message{
 		Type: MsgError,
@@ -628,13 +693,14 @@ func (h *Hub) SendRoomState(client *Client, room *models.Room) {
 	response := Message{
 		Type: MsgRoomState,
 		Payload: map[string]any{
-			"id":             room.ID,
-			"name":           room.Name,
-			"phase":          room.Phase,
-			"votes_per_user": room.VotesPerUser,
-			"participants":   room.Participants,
-			"tickets":        room.Tickets,
-			"action_tickets": room.ActionTickets,
+			"id":                   room.ID,
+			"name":                 room.Name,
+			"phase":                room.Phase,
+			"votes_per_user":       room.VotesPerUser,
+			"participants":         room.Participants,
+			"pending_participants": room.PendingParticipants,
+			"tickets":              room.Tickets,
+			"action_tickets":       room.ActionTickets,
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
@@ -659,6 +725,18 @@ func (h *Hub) NotifyUserLeft(room *models.Room, userID string) {
 		Type: MsgUserLeft,
 		Payload: map[string]any{
 			"user_id": userID,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
+// NotifyParticipantPending notifies all clients in a room that a user is pending approval
+func (h *Hub) NotifyParticipantPending(room *models.Room, participant *models.Participant) {
+	response := Message{
+		Type: MsgParticipantPending,
+		Payload: map[string]any{
+			"participant": participant,
 		},
 	}
 	responseBytes, _ := json.Marshal(response)

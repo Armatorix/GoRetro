@@ -28,7 +28,7 @@ func TestRoom_AddParticipant(t *testing.T) {
 	room := NewRoom("room-1", "Test Room", "owner-1", 3)
 	user := User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
 
-	room.AddParticipant(user, RoleParticipant)
+	room.AddParticipant(user, RoleParticipant, StatusApproved)
 
 	p, ok := room.GetParticipant("user-1")
 	if !ok {
@@ -46,7 +46,7 @@ func TestRoom_RemoveParticipant(t *testing.T) {
 	room := NewRoom("room-1", "Test Room", "owner-1", 3)
 	user := User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
 
-	room.AddParticipant(user, RoleParticipant)
+	room.AddParticipant(user, RoleParticipant, StatusApproved)
 	room.RemoveParticipant("user-1")
 
 	_, ok := room.GetParticipant("user-1")
@@ -59,7 +59,7 @@ func TestRoom_SetParticipantRole(t *testing.T) {
 	room := NewRoom("room-1", "Test Room", "owner-1", 3)
 	user := User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
 
-	room.AddParticipant(user, RoleParticipant)
+	room.AddParticipant(user, RoleParticipant, StatusApproved)
 	result := room.SetParticipantRole("user-1", RoleModerator)
 
 	if !result {
@@ -78,9 +78,9 @@ func TestRoom_IsModeratorOrOwner(t *testing.T) {
 	moderator := User{ID: "mod-1", Email: "mod@example.com", Name: "Moderator"}
 	participant := User{ID: "user-1", Email: "user@example.com", Name: "User"}
 
-	room.AddParticipant(owner, RoleOwner)
-	room.AddParticipant(moderator, RoleModerator)
-	room.AddParticipant(participant, RoleParticipant)
+	room.AddParticipant(owner, RoleOwner, StatusApproved)
+	room.AddParticipant(moderator, RoleModerator, StatusApproved)
+	room.AddParticipant(participant, RoleParticipant, StatusApproved)
 
 	if !room.IsModeratorOrOwner("owner-1") {
 		t.Error("Expected owner to be moderator or owner")
@@ -116,7 +116,7 @@ func TestRoom_AddAndGetTicket(t *testing.T) {
 func TestRoom_Vote(t *testing.T) {
 	room := NewRoom("room-1", "Test Room", "owner-1", 3)
 	user := User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
-	room.AddParticipant(user, RoleParticipant)
+	room.AddParticipant(user, RoleParticipant, StatusApproved)
 
 	ticket := &Ticket{
 		ID:       "ticket-1",
@@ -151,7 +151,7 @@ func TestRoom_Vote(t *testing.T) {
 func TestRoom_Unvote(t *testing.T) {
 	room := NewRoom("room-1", "Test Room", "owner-1", 3)
 	user := User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
-	room.AddParticipant(user, RoleParticipant)
+	room.AddParticipant(user, RoleParticipant, StatusApproved)
 
 	ticket := &Ticket{
 		ID:       "ticket-1",
@@ -176,7 +176,7 @@ func TestRoom_Unvote(t *testing.T) {
 func TestRoom_VotesPerUserLimit(t *testing.T) {
 	room := NewRoom("room-1", "Test Room", "owner-1", 2)
 	user := User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
-	room.AddParticipant(user, RoleParticipant)
+	room.AddParticipant(user, RoleParticipant, StatusApproved)
 
 	ticket1 := &Ticket{ID: "ticket-1", Content: "Ticket 1", AuthorID: "owner-1", VoterIDs: []string{}}
 	ticket2 := &Ticket{ID: "ticket-2", Content: "Ticket 2", AuthorID: "owner-1", VoterIDs: []string{}}

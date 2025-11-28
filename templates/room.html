@@ -261,6 +261,7 @@
             tickets: {},
             actions: {},
             participants: {},
+            pendingParticipants: {},
             votesPerUser: 3,
             votesUsed: 0,
             isModeratorOrOwner: false
@@ -328,6 +329,15 @@
                 case 'user_removed':
                     handleUserRemoved(msg.payload);
                     break;
+                case 'participant_pending':
+                    handleParticipantPending(msg.payload);
+                    break;
+                case 'participant_approved':
+                    handleParticipantApproved(msg.payload);
+                    break;
+                case 'participant_rejected':
+                    handleParticipantRejected(msg.payload);
+                    break;
                 case 'error':
                     showToast(msg.payload.message);
                     break;
@@ -350,6 +360,7 @@
             state.tickets = payload.tickets || {};
             state.actions = payload.action_tickets || {};
             state.participants = payload.participants || {};
+            state.pendingParticipants = payload.pending_participants || {};
             
             // Check if current user is moderator/owner
             const currentParticipant = state.participants[userId];
@@ -434,6 +445,30 @@
             delete state.participants[payload.user_id];
             if (payload.user_id === userId) {
                 window.location.href = '/';
+            }
+            renderParticipants();
+        }
+        
+        function handleParticipantPending(payload) {
+            state.pendingParticipants[payload.participant.user.id] = payload.participant;
+            renderParticipants();
+        }
+        
+        function handleParticipantApproved(payload) {
+            delete state.pendingParticipants[payload.user_id];
+            if (payload.participant) {
+                state.participants[payload.user_id] = payload.participant;
+            }
+            renderParticipants();
+        }
+        
+        function handleParticipantRejected(payload) {
+            delete state.pendingParticipants[payload.user_id];
+            if (payload.user_id === userId) {
+                showToast('Your request to join was rejected');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
             }
             renderParticipants();
         }
@@ -667,9 +702,14 @@
         function renderParticipants() {
             const list = document.getElementById('participants-list');
             const participants = Object.values(state.participants);
+            const pendingParticipants = Object.values(state.pendingParticipants);
             const isOwner = state.participants[userId]?.role === 'owner';
+            const isModOrOwner = state.isModeratorOrOwner;
             
-            list.innerHTML = participants.map(p => {
+            let html = '';
+            
+            // Render approved participants
+            html += participants.map(p => {
                 const roleColor = p.role === 'owner' ? 'text-yellow-600' : p.role === 'moderator' ? 'text-blue-600' : 'text-gray-600';
                 const canChangeRole = isOwner && p.user.id !== userId && p.role !== 'owner';
                 const isModerator = p.role === 'moderator';
@@ -696,6 +736,45 @@
                     </li>
                 `;
             }).join('');
+            
+            // Render pending participants
+            if (pendingParticipants.length > 0 && isModOrOwner) {
+                html += `<li class="mt-4 pt-4 border-t border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-600 mb-2">Pending Approval</h3>
+                </li>`;
+                
+                html += pendingParticipants.map(p => {
+                    return `
+                        <li class="flex items-center justify-between p-2 rounded bg-yellow-50 border border-yellow-200">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 rounded-full bg-yellow-500 text-white flex items-center justify-center text-sm font-medium">
+                                    ${(p.user.name || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <div class="ml-3">
+                                    <span class="text-gray-800 text-sm">${escapeHtml(p.user.name || p.user.email)}</span>
+                                    <span class="text-xs text-yellow-600 ml-1">(pending)</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button 
+                                    onclick="approveParticipant('${p.user.id}')" 
+                                    class="text-xs px-2 py-1 rounded bg-green-500 text-white hover:bg-green-600"
+                                    title="Approve">
+                                    ✓ Approve
+                                </button>
+                                <button 
+                                    onclick="rejectParticipant('${p.user.id}')" 
+                                    class="text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600"
+                                    title="Reject">
+                                    ✗ Reject
+                                </button>
+                            </div>
+                        </li>
+                    `;
+                }).join('');
+            }
+            
+            list.innerHTML = html;
         }
         
         function updateUIForPhase() {
@@ -1017,6 +1096,26 @@
                     role: newRole 
                 } 
             });
+        };
+        
+        window.approveParticipant = function(userId) {
+            send({
+                type: 'approve_participant',
+                payload: {
+                    user_id: userId
+                }
+            });
+        };
+        
+        window.rejectParticipant = function(userId) {
+            if (confirm('Are you sure you want to reject this participant?')) {
+                send({
+                    type: 'reject_participant',
+                    payload: {
+                        user_id: userId
+                    }
+                });
+            }
         };
         
         window.unmergeChild = unmergeChild;

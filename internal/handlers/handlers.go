@@ -117,7 +117,7 @@ func (h *Handler) CreateRoom(c echo.Context) error {
 
 	roomID := uuid.New().String()
 	room := models.NewRoom(roomID, req.Name, user.ID, req.VotesPerUser)
-	room.AddParticipant(user, models.RoleOwner)
+	room.AddParticipant(user, models.RoleOwner, models.StatusApproved)
 
 	if err := h.store.Create(room); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create room"})
@@ -168,12 +168,14 @@ func (h *Handler) GetRoom(c echo.Context) error {
 		return c.String(http.StatusNotFound, "Room not found")
 	}
 
-	// Add user as participant if not already
+	// Add user as pending participant if not already a participant or pending
 	if _, exists := room.GetParticipant(user.ID); !exists {
-		room.AddParticipant(user, models.RoleParticipant)
-		// Update room in store
-		if err := h.store.Update(room); err != nil {
-			return c.String(http.StatusInternalServerError, "Failed to update room")
+		if _, pendingExists := room.GetPendingParticipant(user.ID); !pendingExists {
+			room.AddParticipant(user, models.RoleParticipant, models.StatusPending)
+			// Update room in store
+			if err := h.store.Update(room); err != nil {
+				return c.String(http.StatusInternalServerError, "Failed to update room")
+			}
 		}
 	}
 
@@ -242,20 +244,25 @@ func (h *Handler) WebSocket(c echo.Context) error {
 	client := websocket.NewClient(user.ID, roomID, conn)
 	h.hub.Register(client)
 
-	// Ensure user is a participant
-	if _, exists := room.GetParticipant(user.ID); !exists {
-		room.AddParticipant(user, models.RoleParticipant)
-		// Update room in store
+	// Check if user is approved participant
+	if _, exists := room.GetParticipant(user.ID); exists {
+		// User is approved - notify others and send room state
+		h.hub.NotifyUserJoined(room, user)
+		h.hub.SendRoomState(client, room)
+	} else if pendingParticipant, pendingExists := room.GetPendingParticipant(user.ID); pendingExists {
+		// User is pending - send room state but notify about pending status
+		h.hub.SendRoomState(client, room)
+		h.hub.NotifyParticipantPending(room, pendingParticipant)
+	} else {
+		// User is not yet added - add as pending
+		room.AddParticipant(user, models.RoleParticipant, models.StatusPending)
 		if err := h.store.Update(room); err != nil {
 			return c.String(http.StatusInternalServerError, "Failed to update room")
 		}
+		pendingParticipant, _ := room.GetPendingParticipant(user.ID)
+		h.hub.SendRoomState(client, room)
+		h.hub.NotifyParticipantPending(room, pendingParticipant)
 	}
-
-	// Notify others that user joined
-	h.hub.NotifyUserJoined(room, user)
-
-	// Send current room state to the new client
-	h.hub.SendRoomState(client, room)
 
 	// Start goroutines for reading and writing
 	go h.writePump(client)

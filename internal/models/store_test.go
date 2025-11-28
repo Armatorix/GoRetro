@@ -140,7 +140,7 @@ func TestRoomStore_ListByParticipant(t *testing.T) {
 	room2 := NewRoom("room-2", "Test Room 2", "owner-2", 3)
 
 	user := User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
-	room1.AddParticipant(user, RoleParticipant)
+	room1.AddParticipant(user, RoleParticipant, StatusApproved)
 
 	if err := store.Create(room1); err != nil {
 		t.Fatalf("Failed to create room1: %v", err)
