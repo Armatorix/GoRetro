@@ -288,6 +288,9 @@
                 case 'action_added':
                     handleActionAdded(msg.payload);
                     break;
+                case 'action_deleted':
+                    handleActionDeleted(msg.payload);
+                    break;
                 case 'phase_changed':
                     handlePhaseChanged(msg.payload);
                     break;
@@ -367,6 +370,11 @@
         
         function handleActionAdded(payload) {
             state.actions[payload.action.id] = payload.action;
+            renderActions();
+        }
+        
+        function handleActionDeleted(payload) {
+            delete state.actions[payload.action_id];
             renderActions();
         }
         
@@ -597,10 +605,24 @@
                     const names = action.assignee_ids.map(id => getParticipantName(id)).join(', ');
                     assigneesText = `<span class="text-sm text-gray-500">Assigned to: ${names}</span>`;
                 }
+                
+                // Show delete button only for moderators/owners
+                const deleteBtn = state.isModeratorOrOwner ? 
+                    `<button onclick="deleteAction('${action.id}')" 
+                            class="text-red-400 hover:text-red-600 ml-auto" 
+                            title="Delete action">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>` : '';
+                
                 return `
-                    <div class="border rounded-md p-3 bg-green-50">
-                        <p class="text-gray-800">${escapeHtml(action.content)}</p>
-                        ${assigneesText}
+                    <div class="border rounded-md p-3 bg-green-50 flex items-start justify-between">
+                        <div class="flex-1">
+                            <p class="text-gray-800">${escapeHtml(action.content)}</p>
+                            ${assigneesText}
+                        </div>
+                        ${deleteBtn}
                     </div>
                 `;
             }).join('');
@@ -932,6 +954,12 @@
             document.getElementById('delete-ticket-id').value = ticketId;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+        };
+        
+        window.deleteAction = function(actionId) {
+            if (confirm('Are you sure you want to delete this action item?')) {
+                send({ type: 'delete_action', payload: { action_id: actionId } });
+            }
         };
         
         window.toggleModeratorRole = function(targetUserId, isModerator) {

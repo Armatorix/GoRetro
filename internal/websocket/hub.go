@@ -140,6 +140,8 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleUnvote(client, room, message.Payload)
 	case MsgAddAction:
 		h.handleAddAction(client, room, message.Payload)
+	case MsgDeleteAction:
+		h.handleDeleteAction(client, room, message.Payload)
 	case MsgSetPhase:
 		h.handleSetPhase(client, room, message.Payload)
 	case MsgSetRole:
@@ -391,6 +393,47 @@ func (h *Hub) handleAddAction(client *Client, room *models.Room, payload map[str
 		Type: MsgActionAdded,
 		Payload: map[string]any{
 			"action": action,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
+func (h *Hub) handleDeleteAction(client *Client, room *models.Room, payload map[string]any) {
+	if room.Phase != models.PhaseDiscussion {
+		h.sendError(client, "Can only delete actions during discussion phase")
+		return
+	}
+
+	if !room.IsModeratorOrOwner(client.ID) {
+		h.sendError(client, "Only moderators can delete actions")
+		return
+	}
+
+	actionID, ok := payload["action_id"].(string)
+	if !ok || actionID == "" {
+		h.sendError(client, "Action ID is required")
+		return
+	}
+
+	// Check if action exists
+	if _, exists := room.GetActionTicket(actionID); !exists {
+		h.sendError(client, "Action not found")
+		return
+	}
+
+	room.RemoveActionTicket(actionID)
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to delete action")
+		return
+	}
+
+	response := Message{
+		Type: MsgActionDeleted,
+		Payload: map[string]any{
+			"action_id": actionID,
 		},
 	}
 	responseBytes, _ := json.Marshal(response)

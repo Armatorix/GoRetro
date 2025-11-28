@@ -184,6 +184,21 @@ func (r *Room) AddActionTicket(action *ActionTicket) {
 	r.ActionTickets[action.ID] = action
 }
 
+// RemoveActionTicket removes an action item from the room
+func (r *Room) RemoveActionTicket(actionID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.ActionTickets, actionID)
+}
+
+// GetActionTicket returns an action ticket by ID
+func (r *Room) GetActionTicket(actionID string) (*ActionTicket, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	a, ok := r.ActionTickets[actionID]
+	return a, ok
+}
+
 // SetPhase changes the room's phase
 func (r *Room) SetPhase(phase Phase) {
 	r.mu.Lock()
