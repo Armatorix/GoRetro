@@ -97,6 +97,15 @@
             background: linear-gradient(#10B981, #10B981);
             color: white;
         }
+        /* Username truncation */
+        .username-truncate {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -756,7 +765,7 @@
                         <p class="text-gray-800 mb-3">${escapeHtml(ticket.content)}</p>
                         <div class="flex justify-between items-center text-sm">
                             <div class="flex items-center space-x-2">
-                                <span class="text-gray-500">${getParticipantName(ticket.author_id)}</span>
+                                <span class="text-gray-500 username-truncate" title="${getParticipantName(ticket.author_id)}">${getParticipantName(ticket.author_id)}</span>
                                 ${isCovered ? '<span class="covered-badge">✓ Covered</span>' : ''}
                             </div>
                             <div class="flex items-center space-x-2">
@@ -808,7 +817,7 @@
                              ${isDraggable ? 'draggable="true"' : ''}>
                             <p class="text-gray-800 text-sm mb-2">${escapeHtml(child.content)}</p>
                             <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-500">${getParticipantName(child.author_id)}</span>
+                                <span class="text-gray-500 username-truncate" title="${getParticipantName(child.author_id)}">${getParticipantName(child.author_id)}</span>
                                 ${isDraggable && state.isModeratorOrOwner ? `
                                     <button class="text-gray-400 hover:text-gray-600" onclick="unmergeChild('${child.id}')" title="Separate from parent">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -905,8 +914,8 @@
                             <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
                                 ${(p.user.name || 'U').charAt(0).toUpperCase()}
                             </div>
-                            <div class="ml-3">
-                                <span class="text-gray-800 text-sm">${escapeHtml(p.user.name || p.user.email)}</span>
+                            <div class="ml-3 min-w-0 flex-1">
+                                <span class="text-gray-800 text-sm username-truncate" title="${escapeHtml(p.user.name || p.user.email)}">${escapeHtml(p.user.name || p.user.email)}</span>
                                 <span class="text-xs ${roleColor} ml-1">(${roleTranslated})</span>
                             </div>
                         </div>
@@ -945,8 +954,8 @@
                                 <div class="w-8 h-8 rounded-full bg-yellow-500 text-white flex items-center justify-center text-sm font-medium">
                                     ${(p.user.name || 'U').charAt(0).toUpperCase()}
                                 </div>
-                                <div class="ml-3">
-                                    <span class="text-gray-800 text-sm">${escapeHtml(p.user.name || p.user.email)}</span>
+                                <div class="ml-3 min-w-0 flex-1">
+                                    <span class="text-gray-800 text-sm username-truncate" title="${escapeHtml(p.user.name || p.user.email)}">${escapeHtml(p.user.name || p.user.email)}</span>
                                     <span class="text-xs text-yellow-600 ml-1">(${window.i18n.t('room.participants.pending')})</span>
                                 </div>
                             </div>
