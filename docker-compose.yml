@@ -27,6 +27,8 @@ services:
     build: .
     container_name: goretro-app
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - PORT=8080
       - DATABASE_URL=postgres://goretro:goretro@postgres:5432/goretro?sslmode=disable
