@@ -102,6 +102,31 @@ func (h *Hub) BroadcastToRoomExcept(roomID, exceptClientID string, msg []byte) {
 	}
 }
 
+// BroadcastToApprovedParticipants sends a message only to approved participants in a room
+func (h *Hub) BroadcastToApprovedParticipants(roomID string, msg []byte) {
+	room, ok := h.store.Get(roomID)
+	if !ok {
+		return
+	}
+
+	h.mu.RLock()
+	clients, ok := h.rooms[roomID]
+	h.mu.RUnlock()
+
+	if !ok {
+		return
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for clientID, client := range clients {
+		// Only send to approved participants
+		if _, isApproved := room.GetParticipant(clientID); isApproved {
+			client.SendMessage(msg)
+		}
+	}
+}
+
 // SendToClient sends a message to a specific client
 func (h *Hub) SendToClient(roomID, clientID string, msg []byte) {
 	h.mu.RLock()
@@ -124,6 +149,13 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 	room, ok := h.store.Get(client.RoomID)
 	if !ok {
 		h.sendError(client, "Room not found")
+		return
+	}
+
+	// Check if user is approved (not pending) before allowing any actions
+	_, isApproved := room.GetParticipant(client.ID)
+	if !isApproved {
+		h.sendError(client, "You must be approved to perform actions")
 		return
 	}
 
@@ -195,7 +227,7 @@ func (h *Hub) handleAddTicket(client *Client, room *models.Room, payload map[str
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleEditTicket(client *Client, room *models.Room, payload map[string]any) {
@@ -247,7 +279,7 @@ func (h *Hub) handleEditTicket(client *Client, room *models.Room, payload map[st
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleDeleteTicket(client *Client, room *models.Room, payload map[string]any) {
@@ -280,7 +312,7 @@ func (h *Hub) handleDeleteTicket(client *Client, room *models.Room, payload map[
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleVote(client *Client, room *models.Room, payload map[string]any) {
@@ -316,7 +348,7 @@ func (h *Hub) handleVote(client *Client, room *models.Room, payload map[string]a
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleUnvote(client *Client, room *models.Room, payload map[string]any) {
@@ -352,7 +384,7 @@ func (h *Hub) handleUnvote(client *Client, room *models.Room, payload map[string
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleAddAction(client *Client, room *models.Room, payload map[string]any) {
@@ -402,7 +434,7 @@ func (h *Hub) handleAddAction(client *Client, room *models.Room, payload map[str
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleDeleteAction(client *Client, room *models.Room, payload map[string]any) {
@@ -443,7 +475,7 @@ func (h *Hub) handleDeleteAction(client *Client, room *models.Room, payload map[
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleMarkCovered(client *Client, room *models.Room, payload map[string]any) {
@@ -492,7 +524,7 @@ func (h *Hub) handleMarkCovered(client *Client, room *models.Room, payload map[s
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleSetPhase(client *Client, room *models.Room, payload map[string]any) {
@@ -541,7 +573,7 @@ func (h *Hub) handleSetPhase(client *Client, room *models.Room, payload map[stri
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
-	h.BroadcastToRoom(room.ID, responseBytes)
+	h.BroadcastToApprovedParticipants(room.ID, responseBytes)
 }
 
 func (h *Hub) handleSetRole(client *Client, room *models.Room, payload map[string]any) {
@@ -643,6 +675,27 @@ func (h *Hub) handleApproveParticipant(client *Client, room *models.Room, payloa
 	}
 	responseBytes, _ := json.Marshal(response)
 	h.BroadcastToRoom(room.ID, responseBytes)
+
+	// Send full room state to the newly approved participant
+	h.SendToClient(room.ID, userID, func() []byte {
+		room.RLock()
+		defer room.RUnlock()
+		stateMsg := Message{
+			Type: MsgRoomState,
+			Payload: map[string]any{
+				"id":                   room.ID,
+				"name":                 room.Name,
+				"phase":                room.Phase,
+				"votes_per_user":       room.VotesPerUser,
+				"participants":         room.Participants,
+				"pending_participants": room.PendingParticipants,
+				"tickets":              room.Tickets,
+				"action_tickets":       room.ActionTickets,
+			},
+		}
+		bytes, _ := json.Marshal(stateMsg)
+		return bytes
+	}())
 }
 
 func (h *Hub) handleRejectParticipant(client *Client, room *models.Room, payload map[string]any) {
@@ -701,6 +754,28 @@ func (h *Hub) SendRoomState(client *Client, room *models.Room) {
 			"pending_participants": room.PendingParticipants,
 			"tickets":              room.Tickets,
 			"action_tickets":       room.ActionTickets,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	client.SendMessage(responseBytes)
+}
+
+// SendPendingRoomState sends a limited room state to a pending participant
+func (h *Hub) SendPendingRoomState(client *Client, room *models.Room) {
+	room.RLock()
+	defer room.RUnlock()
+
+	response := Message{
+		Type: MsgRoomState,
+		Payload: map[string]any{
+			"id":                   room.ID,
+			"name":                 room.Name,
+			"phase":                room.Phase,
+			"votes_per_user":       room.VotesPerUser,
+			"participants":         make(map[string]*models.Participant),
+			"pending_participants": make(map[string]*models.Participant),
+			"tickets":              make(map[string]*models.Ticket),
+			"action_tickets":       make(map[string]*models.ActionTicket),
 		},
 	}
 	responseBytes, _ := json.Marshal(response)

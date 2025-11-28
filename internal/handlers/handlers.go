@@ -246,12 +246,12 @@ func (h *Handler) WebSocket(c echo.Context) error {
 
 	// Check if user is approved participant
 	if _, exists := room.GetParticipant(user.ID); exists {
-		// User is approved - notify others and send room state
+		// User is approved - notify others and send full room state
 		h.hub.NotifyUserJoined(room, user)
 		h.hub.SendRoomState(client, room)
 	} else if pendingParticipant, pendingExists := room.GetPendingParticipant(user.ID); pendingExists {
-		// User is pending - send room state but notify about pending status
-		h.hub.SendRoomState(client, room)
+		// User is pending - send limited room state and notify about pending status
+		h.hub.SendPendingRoomState(client, room)
 		h.hub.NotifyParticipantPending(room, pendingParticipant)
 	} else {
 		// User is not yet added - add as pending
@@ -260,7 +260,7 @@ func (h *Handler) WebSocket(c echo.Context) error {
 			return c.String(http.StatusInternalServerError, "Failed to update room")
 		}
 		pendingParticipant, _ := room.GetPendingParticipant(user.ID)
-		h.hub.SendRoomState(client, room)
+		h.hub.SendPendingRoomState(client, room)
 		h.hub.NotifyParticipantPending(room, pendingParticipant)
 	}
 
