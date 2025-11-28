@@ -922,7 +922,7 @@ func (h *Hub) handleAutoMergeTickets(client *Client, room *models.Room, payload 
 	}
 
 	// Only available in DISCUSSION phase
-	if room.Phase != models.PhaseDiscussion {
+	if room.Phase != models.PhaseMerging {
 		h.sendError(client, "Auto-merge is only available during discussion phase")
 		return
 	}

@@ -1110,7 +1110,7 @@
             }
             
             // Show/hide auto-merge button based on phase and moderator status
-            if (state.phase === 'DISCUSSION' && state.isModeratorOrOwner) {
+            if (state.phase === 'MERGING' && state.isModeratorOrOwner) {
                 autoMergeBtn.classList.remove('hidden');
             } else {
                 autoMergeBtn.classList.add('hidden');
