@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 	"time"
 
@@ -12,11 +13,12 @@ import (
 // Hub maintains the set of active clients and broadcasts messages
 type Hub struct {
 	// Room ID -> Client ID -> Client
-	rooms      map[string]map[string]*Client
-	store      *models.RoomStore
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
+	rooms       map[string]map[string]*Client
+	store       *models.RoomStore
+	register    chan *Client
+	unregister  chan *Client
+	mu          sync.RWMutex
+	redisPubSub *RedisPubSub
 }
 
 // NewHub creates a new Hub
@@ -27,6 +29,11 @@ func NewHub(store *models.RoomStore) *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 	}
+}
+
+// SetRedisPubSub sets the Redis pub/sub manager (optional for distributed mode)
+func (h *Hub) SetRedisPubSub(redisPubSub *RedisPubSub) {
+	h.redisPubSub = redisPubSub
 }
 
 // Run starts the hub's main loop
@@ -66,8 +73,8 @@ func (h *Hub) Unregister(client *Client) {
 	h.unregister <- client
 }
 
-// BroadcastToRoom sends a message to all clients in a room
-func (h *Hub) BroadcastToRoom(roomID string, msg []byte) {
+// broadcastToRoomLocal sends a message to all local clients in a room
+func (h *Hub) broadcastToRoomLocal(roomID string, msg []byte) {
 	h.mu.RLock()
 	clients, ok := h.rooms[roomID]
 	h.mu.RUnlock()
@@ -83,8 +90,21 @@ func (h *Hub) BroadcastToRoom(roomID string, msg []byte) {
 	}
 }
 
-// BroadcastToRoomExcept sends a message to all clients except one
-func (h *Hub) BroadcastToRoomExcept(roomID, exceptClientID string, msg []byte) {
+// BroadcastToRoom sends a message to all clients in a room (local + Redis)
+func (h *Hub) BroadcastToRoom(roomID string, msg []byte) {
+	// Broadcast locally
+	h.broadcastToRoomLocal(roomID, msg)
+
+	// Publish to Redis for other instances
+	if h.redisPubSub != nil {
+		if err := h.redisPubSub.PublishToRoom(roomID, msg); err != nil {
+			log.Printf("Failed to publish to Redis: %v", err)
+		}
+	}
+}
+
+// broadcastToRoomExceptLocal sends a message to all local clients except one
+func (h *Hub) broadcastToRoomExceptLocal(roomID, exceptClientID string, msg []byte) {
 	h.mu.RLock()
 	clients, ok := h.rooms[roomID]
 	h.mu.RUnlock()
@@ -102,8 +122,21 @@ func (h *Hub) BroadcastToRoomExcept(roomID, exceptClientID string, msg []byte) {
 	}
 }
 
-// BroadcastToApprovedParticipants sends a message only to approved participants in a room
-func (h *Hub) BroadcastToApprovedParticipants(roomID string, msg []byte) {
+// BroadcastToRoomExcept sends a message to all clients except one (local + Redis)
+func (h *Hub) BroadcastToRoomExcept(roomID, exceptClientID string, msg []byte) {
+	// Broadcast locally
+	h.broadcastToRoomExceptLocal(roomID, exceptClientID, msg)
+
+	// Publish to Redis for other instances
+	if h.redisPubSub != nil {
+		if err := h.redisPubSub.PublishToRoomExcept(roomID, exceptClientID, msg); err != nil {
+			log.Printf("Failed to publish to Redis: %v", err)
+		}
+	}
+}
+
+// broadcastToApprovedParticipantsLocal sends a message only to approved local participants in a room
+func (h *Hub) broadcastToApprovedParticipantsLocal(roomID string, msg []byte) {
 	room, ok := h.store.Get(roomID)
 	if !ok {
 		return
@@ -127,13 +160,39 @@ func (h *Hub) BroadcastToApprovedParticipants(roomID string, msg []byte) {
 	}
 }
 
-// SendToClient sends a message to a specific client
-func (h *Hub) SendToClient(roomID, clientID string, msg []byte) {
+// BroadcastToApprovedParticipants sends a message only to approved participants in a room (local + Redis)
+func (h *Hub) BroadcastToApprovedParticipants(roomID string, msg []byte) {
+	// Broadcast locally
+	h.broadcastToApprovedParticipantsLocal(roomID, msg)
+
+	// Publish to Redis for other instances
+	if h.redisPubSub != nil {
+		if err := h.redisPubSub.PublishToApprovedParticipants(roomID, msg); err != nil {
+			log.Printf("Failed to publish to Redis: %v", err)
+		}
+	}
+}
+
+// sendToClientLocal sends a message to a specific local client
+func (h *Hub) sendToClientLocal(roomID, clientID string, msg []byte) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	if clients, ok := h.rooms[roomID]; ok {
 		if client, ok := clients[clientID]; ok {
 			client.SendMessage(msg)
+		}
+	}
+}
+
+// SendToClient sends a message to a specific client (local + Redis)
+func (h *Hub) SendToClient(roomID, clientID string, msg []byte) {
+	// Send locally
+	h.sendToClientLocal(roomID, clientID, msg)
+
+	// Publish to Redis for other instances
+	if h.redisPubSub != nil {
+		if err := h.redisPubSub.PublishToClient(roomID, clientID, msg); err != nil {
+			log.Printf("Failed to publish to Redis: %v", err)
 		}
 	}
 }

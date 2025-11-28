@@ -14,6 +14,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    container_name: goretro-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
   app:
     build: .
     container_name: goretro-app
@@ -21,8 +30,10 @@ services:
     environment:
       - PORT=8080
       - DATABASE_URL=postgres://goretro:goretro@postgres:5432/goretro?sslmode=disable
+      - REDIS_URL=redis:6379
     depends_on:
       - postgres
+      - redis
     develop:
       watch:
         - path: ./
@@ -74,3 +85,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

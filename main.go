@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"html/template"
@@ -16,6 +17,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 //go:embed templates/*.html
@@ -67,6 +69,30 @@ func main() {
 
 	hub := websocket.NewHub(store)
 	go hub.Run()
+
+	// Initialize Redis if REDIS_URL is set (for distributed mode)
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL != "" {
+		log.Printf("Connecting to Redis at %s", redisURL)
+		rdb := redis.NewClient(&redis.Options{
+			Addr: redisURL,
+		})
+
+		// Test Redis connection
+		ctx := context.Background()
+		if err := rdb.Ping(ctx).Err(); err != nil {
+			log.Printf("Warning: Failed to connect to Redis: %v. Running in local-only mode.", err)
+		} else {
+			log.Println("Connected to Redis successfully")
+			// Set up Redis pub/sub for distributed synchronization
+			redisPubSub := websocket.NewRedisPubSub(rdb, hub)
+			hub.SetRedisPubSub(redisPubSub)
+			go redisPubSub.Start()
+			log.Println("Redis pub/sub enabled for distributed synchronization")
+		}
+	} else {
+		log.Println("REDIS_URL not set, running in local-only mode")
+	}
 
 	// Initialize handlers
 	h := handlers.NewHandler(store, hub)
