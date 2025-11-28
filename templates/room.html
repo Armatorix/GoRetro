@@ -59,6 +59,18 @@
             background-color: #4F46E5;
             color: white;
         }
+        /* Multi-select styling - allow click to toggle without holding Ctrl */
+        #action-assignees {
+            cursor: pointer;
+        }
+        #action-assignees option {
+            padding: 8px;
+            cursor: pointer;
+        }
+        #action-assignees option:checked {
+            background: linear-gradient(#10B981, #10B981);
+            color: white;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -137,7 +149,29 @@
                         
                         <!-- Action Tickets (for discussion phase) -->
                         <div id="actions-container" class="hidden mt-6">
-                            <h3 class="text-md font-semibold text-gray-700 mb-3">Action Items</h3>
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-md font-semibold text-gray-700">Action Items</h3>
+                                <button id="add-action-btn" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors text-sm hidden">
+                                    + Add Action
+                                </button>
+                            </div>
+                            
+                            <!-- Add Action Form -->
+                            <div id="add-action-form" class="hidden mb-4">
+                                <div class="border rounded-md p-4 bg-green-50">
+                                    <textarea id="action-content" rows="2" placeholder="Describe the action item..." 
+                                              class="w-full border rounded-md p-2 mb-2 focus:border-secondary focus:ring-secondary"></textarea>
+                                    <label class="text-sm text-gray-600 mb-1 block font-medium">Assign to (click to select/deselect multiple):</label>
+                                    <select id="action-assignees" multiple size="5" class="w-full border rounded-md p-2 mb-2 focus:border-secondary focus:ring-secondary" style="min-height: 120px;">
+                                        <!-- Participants will be populated here -->
+                                    </select>
+                                    <div class="flex justify-end space-x-2">
+                                        <button id="cancel-action" class="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm">Cancel</button>
+                                        <button id="submit-action" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 text-sm">Add Action</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div id="actions-list" class="space-y-2">
                                 <!-- Action tickets will be rendered here -->
                             </div>
@@ -529,6 +563,7 @@
         function renderActions() {
             const container = document.getElementById('actions-container');
             const list = document.getElementById('actions-list');
+            const addActionBtn = document.getElementById('add-action-btn');
             
             if (!['DISCUSSION', 'SUMMARY'].includes(state.phase)) {
                 container.classList.add('hidden');
@@ -537,18 +572,32 @@
             
             container.classList.remove('hidden');
             
+            // Show add action button only in discussion phase for moderators
+            if (state.phase === 'DISCUSSION' && state.isModeratorOrOwner) {
+                addActionBtn.classList.remove('hidden');
+            } else {
+                addActionBtn.classList.add('hidden');
+            }
+            
             const actions = Object.values(state.actions);
             if (actions.length === 0) {
                 list.innerHTML = '<p class="text-gray-500 text-center py-4">No action items yet.</p>';
                 return;
             }
             
-            list.innerHTML = actions.map(action => `
-                <div class="border rounded-md p-3 bg-green-50">
-                    <p class="text-gray-800">${escapeHtml(action.content)}</p>
-                    ${action.assignee_id ? `<span class="text-sm text-gray-500">Assigned to: ${getParticipantName(action.assignee_id)}</span>` : ''}
-                </div>
-            `).join('');
+            list.innerHTML = actions.map(action => {
+                let assigneesText = '';
+                if (action.assignee_ids && action.assignee_ids.length > 0) {
+                    const names = action.assignee_ids.map(id => getParticipantName(id)).join(', ');
+                    assigneesText = `<span class="text-sm text-gray-500">Assigned to: ${names}</span>`;
+                }
+                return `
+                    <div class="border rounded-md p-3 bg-green-50">
+                        <p class="text-gray-800">${escapeHtml(action.content)}</p>
+                        ${assigneesText}
+                    </div>
+                `;
+            }).join('');
         }
         
         function renderParticipants() {
@@ -588,6 +637,7 @@
         function updateUIForPhase() {
             const addTicketBtn = document.getElementById('add-ticket-btn');
             const addTicketForm = document.getElementById('add-ticket-form');
+            const addActionForm = document.getElementById('add-action-form');
             
             // Show/hide add ticket button based on phase
             if (state.phase === 'TICKETING') {
@@ -595,6 +645,11 @@
             } else {
                 addTicketBtn.classList.add('hidden');
                 addTicketForm.classList.add('hidden');
+            }
+            
+            // Hide add action form when phase changes
+            if (addActionForm) {
+                addActionForm.classList.add('hidden');
             }
         }
         
@@ -765,6 +820,80 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         };
+        
+        // Action item event handlers
+        document.getElementById('add-action-btn').onclick = function() {
+            document.getElementById('add-action-form').classList.remove('hidden');
+            document.getElementById('action-content').focus();
+            populateAssigneeDropdown();
+        };
+        
+        document.getElementById('cancel-action').onclick = function() {
+            document.getElementById('add-action-form').classList.add('hidden');
+            document.getElementById('action-content').value = '';
+            const select = document.getElementById('action-assignees');
+            for (let i = 0; i < select.options.length; i++) {
+                select.options[i].selected = false;
+            }
+        };
+        
+        document.getElementById('submit-action').onclick = function() {
+            const content = document.getElementById('action-content').value.trim();
+            const select = document.getElementById('action-assignees');
+            const assigneeIds = Array.from(select.selectedOptions).map(opt => opt.value);
+            
+            if (content) {
+                const payload = {
+                    content: content,
+                    ticket_id: '' // Can be enhanced to link to specific ticket
+                };
+                
+                if (assigneeIds.length > 0) {
+                    payload.assignee_ids = assigneeIds;
+                }
+                
+                send({ type: 'add_action', payload: payload });
+                document.getElementById('action-content').value = '';
+                // Clear selections
+                for (let i = 0; i < select.options.length; i++) {
+                    select.options[i].selected = false;
+                }
+                document.getElementById('add-action-form').classList.add('hidden');
+            }
+        };
+        
+        function populateAssigneeDropdown() {
+            const select = document.getElementById('action-assignees');
+            const participants = Object.values(state.participants);
+            
+            select.innerHTML = '';
+            
+            if (participants.length === 0) {
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = 'No participants';
+                select.appendChild(option);
+                return;
+            }
+            
+            participants.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.user.id;
+                option.textContent = p.user.name || p.user.email;
+                select.appendChild(option);
+            });
+            
+            // Make multi-select work with simple clicks (no Ctrl/Cmd needed)
+            select.onmousedown = function(e) {
+                e.preventDefault();
+                const option = e.target;
+                if (option.tagName === 'OPTION') {
+                    option.selected = !option.selected;
+                    select.focus();
+                }
+                return false;
+            };
+        }
         
         
         // Global functions for inline event handlers

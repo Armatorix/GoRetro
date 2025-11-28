@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS action_tickets (
     id VARCHAR(255) PRIMARY KEY,
     room_id VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
-    assignee_id VARCHAR(255),
+    assignee_ids JSONB NOT NULL DEFAULT '[]',
     ticket_id VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE

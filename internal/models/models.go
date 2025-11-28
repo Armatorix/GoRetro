@@ -52,11 +52,11 @@ type Ticket struct {
 
 // ActionTicket represents an action item from the discussion phase
 type ActionTicket struct {
-	ID         string    `json:"id"`
-	Content    string    `json:"content"`
-	AssigneeID string    `json:"assignee_id,omitempty"`
-	TicketID   string    `json:"ticket_id"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID          string    `json:"id"`
+	Content     string    `json:"content"`
+	AssigneeIDs []string  `json:"assignee_ids,omitempty"`
+	TicketID    string    `json:"ticket_id"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Room represents a retrospective room

@@ -129,7 +129,7 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	// Get action tickets
 	actionRows, err := s.db.Query(`
-		SELECT id, content, assignee_id, ticket_id, created_at
+		SELECT id, content, assignee_ids, ticket_id, created_at
 		FROM action_tickets WHERE room_id = $1
 	`, id)
 	if err != nil {
@@ -139,13 +139,13 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	for actionRows.Next() {
 		var at ActionTicket
-		var assigneeID sql.NullString
-		err := actionRows.Scan(&at.ID, &at.Content, &assigneeID, &at.TicketID, &at.CreatedAt)
+		var assigneeIDsJSON []byte
+		err := actionRows.Scan(&at.ID, &at.Content, &assigneeIDsJSON, &at.TicketID, &at.CreatedAt)
 		if err != nil {
 			return nil, false
 		}
-		if assigneeID.Valid {
-			at.AssigneeID = assigneeID.String
+		if err := json.Unmarshal(assigneeIDsJSON, &at.AssigneeIDs); err != nil {
+			return nil, false
 		}
 		room.ActionTickets[at.ID] = &at
 	}
@@ -305,14 +305,15 @@ func (s *RoomStore) Update(room *Room) error {
 
 	// Insert action tickets
 	for _, action := range room.ActionTickets {
-		var assigneeID *string
-		if action.AssigneeID != "" {
-			assigneeID = &action.AssigneeID
+		assigneeIDsJSON, err := json.Marshal(action.AssigneeIDs)
+		if err != nil {
+			room.RUnlock()
+			return err
 		}
 		_, err = tx.Exec(`
-			INSERT INTO action_tickets (id, room_id, content, assignee_id, ticket_id, created_at)
+			INSERT INTO action_tickets (id, room_id, content, assignee_ids, ticket_id, created_at)
 			VALUES ($1, $2, $3, $4, $5, $6)
-		`, action.ID, room.ID, action.Content, assigneeID, action.TicketID, action.CreatedAt)
+		`, action.ID, room.ID, action.Content, assigneeIDsJSON, action.TicketID, action.CreatedAt)
 		if err != nil {
 			room.RUnlock()
 			return err

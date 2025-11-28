@@ -360,14 +360,23 @@ func (h *Hub) handleAddAction(client *Client, room *models.Room, payload map[str
 
 	content, _ := payload["content"].(string)
 	ticketID, _ := payload["ticket_id"].(string)
-	assigneeID, _ := payload["assignee_id"].(string)
+
+	// Handle assignee_ids as array
+	var assigneeIDs []string
+	if assigneeIDsRaw, ok := payload["assignee_ids"].([]interface{}); ok {
+		for _, id := range assigneeIDsRaw {
+			if idStr, ok := id.(string); ok {
+				assigneeIDs = append(assigneeIDs, idStr)
+			}
+		}
+	}
 
 	action := &models.ActionTicket{
-		ID:         uuid.New().String(),
-		Content:    content,
-		TicketID:   ticketID,
-		AssigneeID: assigneeID,
-		CreatedAt:  time.Now(),
+		ID:          uuid.New().String(),
+		Content:     content,
+		TicketID:    ticketID,
+		AssigneeIDs: assigneeIDs,
+		CreatedAt:   time.Now(),
 	}
 
 	room.AddActionTicket(action)
