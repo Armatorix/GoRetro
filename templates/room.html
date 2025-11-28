@@ -4,8 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Room.Name}} - GoRetro</title>
+    <title data-i18n-title="room.pageTitle">{{.Room.Name}} - GoRetro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/translations/en.js"></script>
+    <script src="/static/translations/pl.js"></script>
+    <script src="/static/i18n.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -108,9 +111,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">Waiting for Approval</h2>
-                    <p class="text-gray-600 mb-4">Your request to join this room is pending approval by the moderator or owner.</p>
-                    <p class="text-sm text-gray-500">Please wait while your access is being reviewed.</p>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2" data-i18n="room.pendingApproval.title">Waiting for Approval</h2>
+                    <p class="text-gray-600 mb-4" data-i18n="room.pendingApproval.message">Your request to join this room is pending approval by the moderator or owner.</p>
+                    <p class="text-sm text-gray-500" data-i18n="room.pendingApproval.pleaseWait">Please wait while your access is being reviewed.</p>
                 </div>
             </div>
             
@@ -119,7 +122,7 @@
                 <div class="flex justify-between items-center">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-800">{{.Room.Name}}</h1>
-                        <p class="text-sm text-gray-500">Share link: <span class="font-mono bg-gray-100 px-2 py-1 rounded" id="room-link"></span></p>
+                        <p class="text-sm text-gray-500"><span data-i18n="room.shareLink">Share link:</span> <span class="font-mono bg-gray-100 px-2 py-1 rounded" id="room-link"></span></p>
                     </div>
                     <div class="flex items-center space-x-2">
                         <span id="connection-status" class="text-sm px-2 py-1 rounded bg-gray-200 text-gray-600">Connecting...</span>
@@ -131,26 +134,26 @@
             <div class="bg-white rounded-lg shadow p-4 mb-6">
                 <div class="flex justify-between items-center">
                     <div class="flex space-x-2">
-                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="TICKETING" id="phase-TICKETING">
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="TICKETING" id="phase-TICKETING" data-i18n="room.phases.ticketing">
                             1. Ticketing
                         </button>
-                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="BRAINSTORMING" id="phase-BRAINSTORMING">
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="BRAINSTORMING" id="phase-BRAINSTORMING" data-i18n="room.phases.brainstorming">
                             2. Brainstorming
                         </button>
-                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="VOTING" id="phase-VOTING">
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="VOTING" id="phase-VOTING" data-i18n="room.phases.voting">
                             3. Voting
                         </button>
-                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="DISCUSSION" id="phase-DISCUSSION">
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="DISCUSSION" id="phase-DISCUSSION" data-i18n="room.phases.discussion">
                             4. Discussion
                         </button>
-                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="SUMMARY" id="phase-SUMMARY">
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="SUMMARY" id="phase-SUMMARY" data-i18n="room.phases.summary">
                             5. Summary
                         </button>
                     </div>
                 </div>
 
                     <div id="votes-info" class="text-sm text-gray-600 hidden">
-                        Votes used: <span id="votes-used">0</span> / <span id="votes-total">{{.Room.VotesPerUser}}</span>
+                        <span id="votes-info-text"></span>
                     </div>
             </div>
             
@@ -160,8 +163,8 @@
                 <div class="lg:col-span-3">
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-lg font-semibold text-gray-800">Tickets</h2>
-                            <button id="add-ticket-btn" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors text-sm">
+                            <h2 class="text-lg font-semibold text-gray-800" data-i18n="room.tickets.title">Tickets</h2>
+                            <button id="add-ticket-btn" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors text-sm" data-i18n="room.tickets.addButton">
                                 + Add Ticket
                             </button>
                         </div>
@@ -169,11 +172,11 @@
                         <!-- Add Ticket Form -->
                         <div id="add-ticket-form" class="hidden mb-4">
                             <div class="border rounded-md p-4 bg-gray-50">
-                                <textarea id="ticket-content" rows="3" placeholder="What's on your mind?" 
+                                <textarea id="ticket-content" rows="3" data-i18n="room.tickets.placeholder" placeholder="What's on your mind?" 
                                           class="w-full border rounded-md p-2 focus:border-primary focus:ring-primary"></textarea>
                                 <div class="flex justify-end space-x-2 mt-2">
-                                    <button id="cancel-ticket" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
-                                    <button id="submit-ticket" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700">Submit</button>
+                                    <button id="cancel-ticket" class="px-4 py-2 text-gray-600 hover:text-gray-800" data-i18n="room.tickets.cancel">Cancel</button>
+                                    <button id="submit-ticket" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700" data-i18n="room.tickets.submit">Submit</button>
                                 </div>
                             </div>
                         </div>
@@ -186,8 +189,8 @@
                         <!-- Action Tickets (for discussion phase) -->
                         <div id="actions-container" class="hidden mt-6">
                             <div class="flex justify-between items-center mb-3">
-                                <h3 class="text-md font-semibold text-gray-700">Action Items</h3>
-                                <button id="add-action-btn" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors text-sm hidden">
+                                <h3 class="text-md font-semibold text-gray-700" data-i18n="room.actions.title">Action Items</h3>
+                                <button id="add-action-btn" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors text-sm hidden" data-i18n="room.actions.addButton">
                                     + Add Action
                                 </button>
                             </div>
@@ -195,21 +198,21 @@
                             <!-- Add Action Form -->
                             <div id="add-action-form" class="hidden mb-4">
                                 <div class="border rounded-md p-4 bg-green-50">
-                                    <textarea id="action-content" rows="2" placeholder="Describe the action item..." 
+                                    <textarea id="action-content" rows="2" data-i18n="room.actions.placeholder" placeholder="Describe the action item..." 
                                               class="w-full border rounded-md p-2 mb-2 focus:border-secondary focus:ring-secondary"></textarea>
                                     <div class="flex justify-between items-center mb-1">
-                                        <label class="text-sm text-gray-600 font-medium">Assign to (click to select/deselect multiple):</label>
+                                        <label class="text-sm text-gray-600 font-medium" data-i18n="room.actions.assignLabel">Assign to (click to select/deselect multiple):</label>
                                         <div class="flex space-x-2">
-                                            <button id="select-all-assignees" class="text-xs text-secondary hover:text-green-700 underline">Select All</button>
-                                            <button id="deselect-all-assignees" class="text-xs text-gray-600 hover:text-gray-800 underline">Deselect All</button>
+                                            <button id="select-all-assignees" class="text-xs text-secondary hover:text-green-700 underline" data-i18n="room.actions.selectAll">Select All</button>
+                                            <button id="deselect-all-assignees" class="text-xs text-gray-600 hover:text-gray-800 underline" data-i18n="room.actions.deselectAll">Deselect All</button>
                                         </div>
                                     </div>
                                     <select id="action-assignees" multiple size="5" class="w-full border rounded-md p-2 mb-2 focus:border-secondary focus:ring-secondary" style="min-height: 120px;">
                                         <!-- Participants will be populated here -->
                                     </select>
                                     <div class="flex justify-end space-x-2">
-                                        <button id="cancel-action" class="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm">Cancel</button>
-                                        <button id="submit-action" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 text-sm">Add Action</button>
+                                        <button id="cancel-action" class="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm" data-i18n="room.actions.cancel">Cancel</button>
+                                        <button id="submit-action" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 text-sm" data-i18n="room.actions.add">Add Action</button>
                                     </div>
                                 </div>
                             </div>
@@ -224,7 +227,7 @@
                 <!-- Participants Panel -->
                 <div class="lg:col-span-1">
                     <div class="bg-white rounded-lg shadow p-6">
-                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Participants</h2>
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4" data-i18n="room.participants.title">Participants</h2>
                         <ul id="participants-list" class="space-y-2">
                             <!-- Participants will be rendered here -->
                         </ul>
@@ -241,12 +244,12 @@
         <!-- Confirm Delete Modal -->
         <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40">
             <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Delete Ticket</h3>
-                <p class="text-gray-600 mb-4">Are you sure you want to delete this ticket? This action cannot be undone.</p>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2" data-i18n="room.tickets.deleteConfirmTitle">Delete Ticket</h3>
+                <p class="text-gray-600 mb-4" data-i18n="room.tickets.deleteConfirmMessage">Are you sure you want to delete this ticket? This action cannot be undone.</p>
                 <input type="hidden" id="delete-ticket-id">
                 <div class="flex justify-end space-x-2">
-                    <button id="cancel-delete-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800">Cancel</button>
-                    <button id="confirm-delete-modal" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600">Delete</button>
+                    <button id="cancel-delete-modal" class="px-4 py-2 text-gray-600 hover:text-gray-800" data-i18n="room.tickets.cancel">Cancel</button>
+                    <button id="confirm-delete-modal" class="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600" data-i18n="room.tickets.delete">Delete</button>
                 </div>
             </div>
         </div>
@@ -260,6 +263,13 @@
         
         // Set room link
         document.getElementById('room-link').textContent = window.location.href;
+        
+        // Listen for language changes and re-render
+        window.addEventListener('languageChanged', function() {
+            if (state.tickets && Object.keys(state.tickets).length > 0) {
+                renderAll();
+            }
+        });
         
         // Color for current user's tickets vs others
         function getTicketColor(authorId) {
@@ -361,7 +371,7 @@
             
             ws.onopen = function() {
                 document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-green-100 text-green-800';
-                document.getElementById('connection-status').textContent = 'Connected';
+                document.getElementById('connection-status').textContent = window.i18n.t('room.connectionStatus.connected');
                 reconnectAttempts = 0;
                 reconnectInterval = 1000;
                 isConnected = true;
@@ -370,7 +380,7 @@
             
             ws.onclose = function() {
                 document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800';
-                document.getElementById('connection-status').textContent = 'Disconnected';
+                document.getElementById('connection-status').textContent = window.i18n.t('room.connectionStatus.disconnected');
                 isConnected = false;
                 disableAllActions();
                 
@@ -382,7 +392,7 @@
             
             ws.onerror = function() {
                 document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800';
-                document.getElementById('connection-status').textContent = 'Error';
+                document.getElementById('connection-status').textContent = window.i18n.t('room.connectionStatus.error');
                 isConnected = false;
                 disableAllActions();
             };
@@ -396,8 +406,8 @@
         function attemptReconnect() {
             if (reconnectAttempts >= maxReconnectAttempts) {
                 document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800';
-                document.getElementById('connection-status').textContent = 'Connection failed';
-                showToast('Unable to reconnect. Please refresh the page.');
+                document.getElementById('connection-status').textContent = window.i18n.t('room.connectionStatus.failed');
+                showToast(window.i18n.t('room.messages.unableToReconnect'));
                 return;
             }
             
@@ -405,7 +415,7 @@
             const delay = Math.min(reconnectInterval * Math.pow(1.5, reconnectAttempts - 1), 30000); // Max 30 seconds
             
             document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-yellow-100 text-yellow-800';
-            document.getElementById('connection-status').textContent = `Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`;
+            document.getElementById('connection-status').textContent = window.i18n.t('room.connectionStatus.reconnecting', { attempt: reconnectAttempts, max: maxReconnectAttempts });
             
             reconnectTimer = setTimeout(() => {
                 console.log(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
@@ -609,7 +619,7 @@
                 state.isPending = false;
                 state.isModeratorOrOwner = payload.participant?.role === 'owner' || payload.participant?.role === 'moderator';
                 document.getElementById('pending-overlay').classList.add('hidden');
-                showToast('Your access has been approved!');
+                showToast(window.i18n.t('room.messages.accessApproved'));
             }
             
             renderParticipants();
@@ -618,7 +628,7 @@
         function handleParticipantRejected(payload) {
             delete state.pendingParticipants[payload.user_id];
             if (payload.user_id === userId) {
-                showToast('Your request to join was rejected');
+                showToast(window.i18n.t('room.messages.requestRejected'));
                 setTimeout(() => {
                     window.location.href = '/';
                 }, 2000);
@@ -667,8 +677,10 @@
             const votesInfo = document.getElementById('votes-info');
             if (state.phase === 'VOTING') {
                 votesInfo.classList.remove('hidden');
-                document.getElementById('votes-used').textContent = state.votesUsed;
-                document.getElementById('votes-total').textContent = state.votesPerUser;
+                document.getElementById('votes-info-text').textContent = window.i18n.t('room.votes.info', { 
+                    used: state.votesUsed, 
+                    total: state.votesPerUser 
+                });
             } else {
                 votesInfo.classList.add('hidden');
             }
@@ -679,7 +691,7 @@
             const tickets = Object.values(state.tickets);
             
             if (tickets.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-500 py-8">No tickets yet. Be the first to add one!</p>';
+                container.innerHTML = `<p class="text-center text-gray-500 py-8">${window.i18n.t('room.tickets.noTickets')}</p>`;
                 return;
             }
             
@@ -826,7 +838,7 @@
             
             const actions = Object.values(state.actions);
             if (actions.length === 0) {
-                list.innerHTML = '<p class="text-gray-500 text-center py-4">No action items yet.</p>';
+                list.innerHTML = `<p class="text-gray-500 text-center py-4">${window.i18n.t('room.actions.noActions')}</p>`;
                 return;
             }
             
@@ -834,7 +846,7 @@
                 let assigneesText = '';
                 if (action.assignee_ids && action.assignee_ids.length > 0) {
                     const names = action.assignee_ids.map(id => getParticipantName(id)).join(', ');
-                    assigneesText = `<span class="text-sm text-gray-500">Assigned to: ${names}</span>`;
+                    assigneesText = `<span class="text-sm text-gray-500">${window.i18n.t('room.actions.assignedTo', { names })}</span>`;
                 }
                 
                 // Show delete button only for moderators/owners
@@ -874,6 +886,7 @@
                 const canChangeRole = isOwner && p.user.id !== userId && p.role !== 'owner';
                 const canRemove = isModOrOwner && p.user.id !== userId && p.role !== 'owner';
                 const isModerator = p.role === 'moderator';
+                const roleTranslated = window.i18n.t(`room.participants.${p.role}`);
                 
                 return `
                     <li class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
@@ -883,7 +896,7 @@
                             </div>
                             <div class="ml-3">
                                 <span class="text-gray-800 text-sm">${escapeHtml(p.user.name || p.user.email)}</span>
-                                <span class="text-xs ${roleColor} ml-1">(${p.role})</span>
+                                <span class="text-xs ${roleColor} ml-1">(${roleTranslated})</span>
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -891,16 +904,16 @@
                                 <button 
                                     onclick="toggleModeratorRole('${p.user.id}', ${isModerator})" 
                                     class="text-xs px-2 py-1 rounded ${isModerator ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
-                                    title="${isModerator ? 'Demote from moderator' : 'Promote to moderator'}">
-                                    ${isModerator ? '↓ Demote' : '↑ Promote'}
+                                    title="${window.i18n.t(isModerator ? 'room.participants.demoteFromModerator' : 'room.participants.promoteToModerator')}">
+                                    ${window.i18n.t(isModerator ? 'room.participants.demote' : 'room.participants.promote')}
                                 </button>
                             ` : ''}
                             ${canRemove ? `
                                 <button 
                                     onclick="removeParticipant('${p.user.id}')" 
                                     class="text-xs px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200"
-                                    title="Remove from room">
-                                    ✗ Remove
+                                    title="${window.i18n.t('room.participants.removeFromRoom')}">
+                                    ${window.i18n.t('room.participants.remove')}
                                 </button>
                             ` : ''}
                         </div>
@@ -911,7 +924,7 @@
             // Render pending participants
             if (pendingParticipants.length > 0 && isModOrOwner) {
                 html += `<li class="mt-4 pt-4 border-t border-gray-200">
-                    <h3 class="text-sm font-semibold text-gray-600 mb-2">Pending Approval</h3>
+                    <h3 class="text-sm font-semibold text-gray-600 mb-2">${window.i18n.t('room.participants.pendingApprovalTitle')}</h3>
                 </li>`;
                 
                 html += pendingParticipants.map(p => {
@@ -923,21 +936,21 @@
                                 </div>
                                 <div class="ml-3">
                                     <span class="text-gray-800 text-sm">${escapeHtml(p.user.name || p.user.email)}</span>
-                                    <span class="text-xs text-yellow-600 ml-1">(pending)</span>
+                                    <span class="text-xs text-yellow-600 ml-1">(${window.i18n.t('room.participants.pending')})</span>
                                 </div>
                             </div>
                             <div class="flex gap-2">
                                 <button 
                                     onclick="approveParticipant('${p.user.id}')" 
                                     class="text-xs px-2 py-1 rounded bg-green-500 text-white hover:bg-green-600"
-                                    title="Approve">
-                                    ✓ Approve
+                                    title="${window.i18n.t('room.participants.approve')}">
+                                    ${window.i18n.t('room.participants.approve')}
                                 </button>
                                 <button 
                                     onclick="rejectParticipant('${p.user.id}')" 
                                     class="text-xs px-2 py-1 rounded bg-red-500 text-white hover:bg-red-600"
-                                    title="Reject">
-                                    ✗ Reject
+                                    title="${window.i18n.t('room.participants.reject')}">
+                                    ${window.i18n.t('room.participants.reject')}
                                 </button>
                             </div>
                         </li>
@@ -985,7 +998,7 @@
             if (ws && ws.readyState === WebSocket.OPEN && isConnected) {
                 ws.send(JSON.stringify(msg));
             } else {
-                showToast('Cannot perform action: disconnected from server');
+                showToast(window.i18n.t('room.messages.cannotPerformDisconnected'));
             }
         }
         
@@ -1203,7 +1216,7 @@
             if (participants.length === 0) {
                 const option = document.createElement('option');
                 option.disabled = true;
-                option.textContent = 'No participants';
+                option.textContent = window.i18n.t('room.participants.noParticipants');
                 select.appendChild(option);
                 return;
             }
@@ -1255,7 +1268,7 @@
         };
         
         window.deleteAction = function(actionId) {
-            if (confirm('Are you sure you want to delete this action item?')) {
+            if (confirm(window.i18n.t('room.actions.deleteConfirm'))) {
                 send({ type: 'delete_action', payload: { action_id: actionId } });
             }
         };
@@ -1281,7 +1294,7 @@
         };
         
         window.rejectParticipant = function(userId) {
-            if (confirm('Are you sure you want to reject this participant?')) {
+            if (confirm(window.i18n.t('room.participants.rejectConfirm'))) {
                 send({
                     type: 'reject_participant',
                     payload: {
@@ -1292,7 +1305,7 @@
         };
         
         window.removeParticipant = function(userId) {
-            if (confirm('Are you sure you want to remove this participant from the room?')) {
+            if (confirm(window.i18n.t('room.participants.removeConfirm'))) {
                 send({
                     type: 'remove_user',
                     payload: {

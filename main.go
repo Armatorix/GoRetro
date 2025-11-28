@@ -5,6 +5,7 @@ import (
 	"embed"
 	"html/template"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,9 @@ import (
 
 //go:embed templates/*.html
 var templateFS embed.FS
+
+//go:embed static/*
+var staticFS embed.FS
 
 // TemplateRenderer is a custom html/template renderer for Echo
 type TemplateRenderer struct {
@@ -78,6 +82,13 @@ func main() {
 	// Parse templates
 	tmpl := template.Must(template.ParseFS(templateFS, "templates/*.html"))
 	e.Renderer = &TemplateRenderer{templates: tmpl}
+
+	// Serve static files from embedded filesystem
+	staticSubFS, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		log.Fatalf("Failed to create static sub filesystem: %v", err)
+	}
+	e.GET("/static/*", echo.WrapHandler(http.StripPrefix("/static/", http.FileServer(http.FS(staticSubFS)))))
 
 	// Routes
 	e.GET("/", h.Index)

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GoRetro - Retrospective Tool</title>
+    <title data-i18n-title="index.pageTitle">GoRetro - Retrospective Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="/static/icon.png" />
     <script>
@@ -19,6 +19,9 @@
             }
         }
     </script>
+    <script src="/static/translations/en.js"></script>
+    <script src="/static/translations/pl.js"></script>
+    <script src="/static/i18n.js"></script>
     <style>
         .ticket {
             transition: transform 0.2s, box-shadow 0.2s;
@@ -36,20 +39,21 @@
         <div class="grid md:grid-cols-2 gap-8">
             <!-- Create Room Section -->
             <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Create New Retrospective</h2>
+                <h2 class="text-xl font-semibold text-gray-800 mb-4" data-i18n="index.createRoom.title">Create New Retrospective</h2>
                 <form action="/rooms" method="POST" class="space-y-4">
                     <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700">Room Name</label>
-                        <input type="text" name="name" id="name" placeholder="Sprint Retrospective" 
+                        <label for="name" class="block text-sm font-medium text-gray-700" data-i18n="index.createRoom.roomNameLabel">Room Name</label>
+                        <input type="text" name="name" id="name" data-i18n="index.createRoom.roomNamePlaceholder" placeholder="Sprint Retrospective" 
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm border p-2">
                     </div>
                     <div>
-                        <label for="votes_per_user" class="block text-sm font-medium text-gray-700">Votes per User</label>
+                        <label for="votes_per_user" class="block text-sm font-medium text-gray-700" data-i18n="index.createRoom.votesLabel">Votes per User</label>
                         <input type="number" name="votes_per_user" id="votes_per_user" value="3" min="1" max="10"
                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm border p-2">
                     </div>
                     <button type="submit" 
-                            class="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors">
+                            class="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+                            data-i18n="index.createRoom.createButton">
                         Create Room
                     </button>
                 </form>
@@ -57,7 +61,7 @@
             
             <!-- My Rooms Section -->
             <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">My Retrospectives</h2>
+                <h2 class="text-xl font-semibold text-gray-800 mb-4" data-i18n="index.myRooms.title">My Retrospectives</h2>
                 {{if .Rooms}}
                 <ul class="space-y-3">
                     {{range .Rooms}}
@@ -66,7 +70,7 @@
                             <div class="flex items-center gap-2">
                                 <span class="font-medium text-gray-800">{{.Name}}</span>
                                 {{if eq .OwnerID $.User.ID}}
-                                <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium">Owner</span>
+                                <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium" data-i18n="index.myRooms.ownerBadge">Owner</span>
                                 {{end}}
                                 <span class="text-sm text-gray-500">{{.Phase}}</span>
                             </div>
@@ -78,39 +82,39 @@
                     {{end}}
                 </ul>
                 {{else}}
-                <p class="text-gray-500 text-center py-8">No retrospectives yet. Create one to get started!</p>
+                <p class="text-gray-500 text-center py-8" data-i18n="index.myRooms.noRooms">No retrospectives yet. Create one to get started!</p>
                 {{end}}
             </div>
         </div>
 
         <!-- How it works -->
         <div class="mt-12 bg-white rounded-lg shadow p-6">
-            <h2 class="text-xl font-semibold text-gray-800 mb-6">How It Works</h2>
+            <h2 class="text-xl font-semibold text-gray-800 mb-6" data-i18n="index.howItWorks.title">How It Works</h2>
             <div class="grid md:grid-cols-5 gap-4">
                 <div class="text-center p-4">
                     <div class="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">1</div>
-                    <h3 class="font-medium text-gray-800">Ticketing</h3>
-                    <p class="text-sm text-gray-500 mt-1">Participants add their thoughts and feedback</p>
+                    <h3 class="font-medium text-gray-800" data-i18n="index.howItWorks.step1.title">Ticketing</h3>
+                    <p class="text-sm text-gray-500 mt-1" data-i18n="index.howItWorks.step1.description">Participants add their thoughts and feedback</p>
                 </div>
                 <div class="text-center p-4">
                     <div class="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">2</div>
-                    <h3 class="font-medium text-gray-800">Brainstorming</h3>
-                    <p class="text-sm text-gray-500 mt-1">Moderators group similar tickets together</p>
+                    <h3 class="font-medium text-gray-800" data-i18n="index.howItWorks.step2.title">Brainstorming</h3>
+                    <p class="text-sm text-gray-500 mt-1" data-i18n="index.howItWorks.step2.description">Moderators group similar tickets together</p>
                 </div>
                 <div class="text-center p-4">
                     <div class="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">3</div>
-                    <h3 class="font-medium text-gray-800">Voting</h3>
-                    <p class="text-sm text-gray-500 mt-1">Everyone votes on what to discuss</p>
+                    <h3 class="font-medium text-gray-800" data-i18n="index.howItWorks.step3.title">Voting</h3>
+                    <p class="text-sm text-gray-500 mt-1" data-i18n="index.howItWorks.step3.description">Everyone votes on what to discuss</p>
                 </div>
                 <div class="text-center p-4">
                     <div class="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">4</div>
-                    <h3 class="font-medium text-gray-800">Discussion</h3>
-                    <p class="text-sm text-gray-500 mt-1">Discuss top items and create action tickets</p>
+                    <h3 class="font-medium text-gray-800" data-i18n="index.howItWorks.step4.title">Discussion</h3>
+                    <p class="text-sm text-gray-500 mt-1" data-i18n="index.howItWorks.step4.description">Discuss top items and create action tickets</p>
                 </div>
                 <div class="text-center p-4">
                     <div class="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-3 text-lg font-bold">5</div>
-                    <h3 class="font-medium text-gray-800">Summary</h3>
-                    <p class="text-sm text-gray-500 mt-1">Review all feedback and action items</p>
+                    <h3 class="font-medium text-gray-800" data-i18n="index.howItWorks.step5.title">Summary</h3>
+                    <p class="text-sm text-gray-500 mt-1" data-i18n="index.howItWorks.step5.description">Review all feedback and action items</p>
                 </div>
             </div>
         </div>
