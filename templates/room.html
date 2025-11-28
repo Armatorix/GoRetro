@@ -150,8 +150,8 @@
                         <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="TICKETING" id="phase-TICKETING" data-i18n="room.phases.ticketing">
                             1. Ticketing
                         </button>
-                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="BRAINSTORMING" id="phase-BRAINSTORMING" data-i18n="room.phases.brainstorming">
-                            2. Brainstorming
+                        <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="MERGING" id="phase-MERGING" data-i18n="room.phases.merging">
+                            2. Merging
                         </button>
                         <button class="phase-indicator px-4 py-2 rounded-md text-sm font-medium" data-phase="VOTING" id="phase-VOTING" data-i18n="room.phases.voting">
                             3. Voting
@@ -391,8 +391,8 @@
                 select.style.opacity = '';
             });
             
-            // Re-enable dragging if in brainstorming phase
-            if (state.phase === 'BRAINSTORMING') {
+            // Re-enable dragging if in merging phase
+            if (state.phase === 'MERGING') {
                 const draggables = document.querySelectorAll('.ticket.draggable');
                 draggables.forEach(elem => {
                     elem.draggable = true;
@@ -757,7 +757,7 @@
                 parentTickets.sort((a, b) => (b.votes || 0) - (a.votes || 0));
             }
             
-            const isDraggable = state.phase === 'BRAINSTORMING';
+            const isDraggable = state.phase === 'MERGING';
             
             container.innerHTML = parentTickets.map(ticket => {
                 const children = childrenMap[ticket.id] || [];
@@ -766,7 +766,7 @@
                 return renderTicketWithChildren(ticket, children, isDraggable, hasChildren);
             }).join('');
             
-            // Add drag and drop event listeners in brainstorming phase
+            // Add drag and drop event listeners in merging phase
             if (isDraggable) {
                 setupDragAndDrop();
             }

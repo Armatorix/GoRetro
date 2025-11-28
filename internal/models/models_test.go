@@ -197,9 +197,9 @@ func TestRoom_VotesPerUserLimit(t *testing.T) {
 func TestRoom_SetPhase(t *testing.T) {
 	room := NewRoom("room-1", "Test Room", "owner-1", 3)
 
-	room.SetPhase(PhaseBrainstorm)
-	if room.Phase != PhaseBrainstorm {
-		t.Errorf("Expected phase BRAINSTORMING, got '%s'", room.Phase)
+	room.SetPhase(PhaseMerging)
+	if room.Phase != PhaseMerging {
+		t.Errorf("Expected phase MERGING, got '%s'", room.Phase)
 	}
 
 	room.SetPhase(PhaseVoting)

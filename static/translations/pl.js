@@ -30,7 +30,7 @@ window.translations.pl = {
                 description: "Uczestnicy dodają swoje przemyślenia i opinie"
             },
             step2: {
-                title: "Burza Mózgów",
+                title: "Łączenie",
                 description: "Moderatorzy grupują podobne notatki"
             },
             step3: {
@@ -69,7 +69,7 @@ window.translations.pl = {
         },
         phases: {
             ticketing: "1. Notatki",
-            brainstorming: "2. Burza Mózgów",
+            merging: "2. Łączenie",
             voting: "3. Głosowanie",
             discussion: "4. Dyskusja",
             summary: "5. Podsumowanie"

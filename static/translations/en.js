@@ -30,7 +30,7 @@ window.translations.en = {
                 description: "Participants add their thoughts and feedback"
             },
             step2: {
-                title: "Brainstorming",
+                title: "Merging",
                 description: "Moderators group similar tickets together"
             },
             step3: {
@@ -69,7 +69,7 @@ window.translations.en = {
         },
         phases: {
             ticketing: "1. Ticketing",
-            brainstorming: "2. Brainstorming",
+            merging: "2. Merging",
             voting: "3. Voting",
             discussion: "4. Discussion",
             summary: "5. Summary"

@@ -10,7 +10,7 @@ type Phase string
 
 const (
 	PhaseTicketing  Phase = "TICKETING"
-	PhaseBrainstorm Phase = "BRAINSTORMING"
+	PhaseMerging    Phase = "MERGING"
 	PhaseVoting     Phase = "VOTING"
 	PhaseDiscussion Phase = "DISCUSSION"
 	PhaseSummary    Phase = "SUMMARY"

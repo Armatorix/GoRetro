@@ -539,7 +539,7 @@ func (h *Hub) handleSetPhase(client *Client, room *models.Room, payload map[stri
 	// Validate phase transition
 	validPhases := []models.Phase{
 		models.PhaseTicketing,
-		models.PhaseBrainstorm,
+		models.PhaseMerging,
 		models.PhaseVoting,
 		models.PhaseDiscussion,
 		models.PhaseSummary,
