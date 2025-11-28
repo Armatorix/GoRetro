@@ -356,6 +356,13 @@
 
         <div id="features" class="tab-content active">
             <div class="content-card">
+                <h2>⚠️ Authentication Requirement</h2>
+                <div class="warning-box">
+                    <strong>OAuth2 Proxy Required:</strong> GoRetro requires an OAuth2 proxy (such as oauth2-proxy) to be configured in front of the application. The proxy must set proper authentication headers (<code>X-Forwarded-User</code>, <code>X-Forwarded-Email</code>, etc.) that the application uses to identify users. The application does not handle authentication directly.
+                </div>
+            </div>
+
+            <div class="content-card">
                 <h2>Core Features</h2>
                 
                 <div class="feature-grid">
@@ -387,11 +394,6 @@
                     <div class="feature-item">
                         <h3>🌍 Internationalization</h3>
                         <p>Multi-language support with automatic detection (English & Polish)</p>
-                    </div>
-
-                    <div class="feature-item">
-                        <h3>🔐 OAuth2 Authentication</h3>
-                        <p>Secure authentication with OAuth2 Proxy and Dex OIDC provider</p>
                     </div>
 
                     <div class="feature-item">
@@ -545,10 +547,12 @@
                     </div>
                 </div>
 
-                <h3>OAuth2 Configuration</h3>
+                <h3>Authentication Configuration</h3>
                 
-                <div class="info-box">
-                    <strong>Note:</strong> OAuth2 authentication is configured via the docker-compose.yml file. See the Deployment tab for details.
+                <div class="warning-box">
+                    <strong>⚠️ Required:</strong> GoRetro must be deployed behind an OAuth2 proxy that sets authentication headers. The application expects headers like <code>X-Forwarded-User</code> and <code>X-Forwarded-Email</code> to identify users. Without these headers, the application will not function correctly.
+                    <br><br>
+                    OAuth2 proxy configuration is included in the docker-compose.yml file. See the Deployment tab for complete setup instructions.
                 </div>
             </div>
 
@@ -605,29 +609,34 @@ REDIS_URL=redis:6379
 # CHAT_COMPLETION_API_KEY=your-key-here
 EOF
 
-# Start all services
+# Start all services (includes OAuth2 proxy)
 docker compose up -d
 
-# Access the application
-# With OAuth2: http://localhost
-# Without OAuth2: http://localhost:8080</code></pre>
+# Access the application through OAuth2 proxy
+# Application is available at: http://localhost</code></pre>
 
                 <h4>Services Included</h4>
                 <ul>
                     <li><strong>PostgreSQL</strong> - Database on port 5432</li>
                     <li><strong>Redis</strong> - Cache and pub/sub on port 6379</li>
-                    <li><strong>GoRetro App</strong> - Main application on port 8080</li>
-                    <li><strong>OAuth2 Proxy</strong> - Authentication layer on port 80</li>
+                    <li><strong>GoRetro App</strong> - Main application on port 8080 (internal only)</li>
+                    <li><strong>OAuth2 Proxy</strong> - Required authentication layer on port 80 (public endpoint)</li>
                     <li><strong>Dex</strong> - OIDC provider on port 5556</li>
                 </ul>
 
                 <div class="warning-box">
-                    <strong>⚠️ Security Note:</strong> The default docker-compose.yml includes OAuth2 authentication. For production use, update the OAuth2 configuration in docker-compose.yml and dex/config.yaml with proper credentials and OIDC providers.
+                    <strong>⚠️ Important:</strong> The OAuth2 proxy is <strong>required</strong> and must be properly configured. The GoRetro application expects authentication headers from the proxy and will not work without them.
+                    <br><br>
+                    <strong>For production:</strong> Update the OAuth2 configuration in docker-compose.yml and dex/config.yaml with proper credentials, callback URLs, and OIDC providers. Never expose the application port (8080) directly - always access through the OAuth2 proxy.
                 </div>
             </div>
 
             <div class="content-card">
                 <h2>Standalone Deployment</h2>
+                
+                <div class="warning-box">
+                    <strong>⚠️ OAuth2 Proxy Required:</strong> When deploying standalone, you <strong>must</strong> configure an OAuth2 proxy (such as oauth2-proxy) in front of the GoRetro application. The application requires authentication headers (<code>X-Forwarded-User</code>, <code>X-Forwarded-Email</code>) to function. Do not expose the application directly to users.
+                </div>
                 
                 <h3>Building from Source</h3>
                 <pre><code># Prerequisites: Go 1.21 or higher
@@ -641,8 +650,18 @@ go build -o goretro
 export DATABASE_URL="postgres://user:password@localhost:5432/goretro?sslmode=disable"
 export REDIS_URL="localhost:6379"  # Optional
 
-# Run
+# Run (behind OAuth2 proxy - do not expose directly!)
 ./goretro</code></pre>
+
+                <div class="info-box">
+                    <strong>Next Steps:</strong> After building, you must configure an OAuth2 proxy to:
+                    <ul>
+                        <li>Handle user authentication</li>
+                        <li>Set required headers: <code>X-Forwarded-User</code>, <code>X-Forwarded-Email</code></li>
+                        <li>Proxy requests to the GoRetro application</li>
+                    </ul>
+                    See the Docker Compose configuration for a complete OAuth2 proxy setup example.
+                </div>
 
                 <h3>Database Setup</h3>
                 <p>GoRetro uses PostgreSQL. You need to:</p>
@@ -667,19 +686,28 @@ export REDIS_URL="localhost:6379"  # Optional
                 <h2>Development Setup</h2>
                 
                 <h3>Using Make</h3>
-                <pre><code># Start with hot-reload using Docker Compose watch mode
-make up</code></pre>
+                <pre><code># Start all services including OAuth2 proxy with hot-reload
+make up
+
+# Access at http://localhost (through OAuth2 proxy)</code></pre>
 
                 <h3>Manual Development</h3>
-                <pre><code># Start dependencies
-docker compose up postgres redis -d
+                <pre><code># Start all dependencies including OAuth2 proxy
+docker compose up postgres redis oauth2-proxy dex -d
 
 # Set environment variables
 export DATABASE_URL="postgres://goretro:goretro@localhost:5432/goretro?sslmode=disable"
 export REDIS_URL="localhost:6379"
 
-# Run with hot-reload (requires air or similar)
-go run main.go</code></pre>
+# Run the app (it will receive headers from OAuth2 proxy)
+go run main.go
+
+# Access at http://localhost (through OAuth2 proxy on port 80)
+# The app runs on port 8080 but should only be accessed via proxy</code></pre>
+                
+                <div class="info-box">
+                    <strong>Development Note:</strong> Even in development, use the OAuth2 proxy to access the application. The app expects authentication headers that only the proxy provides. Direct access to port 8080 will not work correctly.
+                </div>
             </div>
         </div>
 
@@ -817,9 +845,13 @@ go run main.go</code></pre>
 
                 <h4>Authentication Issues</h4>
                 <ul>
-                    <li>For OAuth2 setup, verify Dex and OAuth2 Proxy configurations</li>
-                    <li>Check redirect URLs match your deployment</li>
-                    <li>Ensure cookies are enabled in the browser</li>
+                    <li>Verify OAuth2 Proxy and Dex are running and accessible</li>
+                    <li>Check OAuth2 proxy is setting headers correctly (<code>X-Forwarded-User</code>, <code>X-Forwarded-Email</code>)</li>
+                    <li>Ensure redirect URLs in dex/config.yaml match your deployment URL</li>
+                    <li>Verify client ID and secret match between OAuth2 proxy and Dex</li>
+                    <li>Confirm cookies are enabled in the browser</li>
+                    <li>Never access the application directly on port 8080 - always use the OAuth2 proxy endpoint</li>
+                    <li>Check OAuth2 proxy logs for authentication errors</li>
                 </ul>
             </div>
         </div>

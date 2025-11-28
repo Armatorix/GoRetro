@@ -2,6 +2,12 @@
 
 A retrospective tool for agile teams.
 
+## ⚠️ Authentication Requirement
+
+**GoRetro requires an OAuth2 proxy to function.** The application does not handle authentication directly. It expects an OAuth2 proxy (such as [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/)) to be configured in front of it, setting proper authentication headers (`X-Forwarded-User`, `X-Forwarded-Email`, etc.).
+
+The included `docker-compose.yml` provides a complete setup with OAuth2 Proxy and Dex OIDC provider.
+
 ## Features
 
 - **Multi-phase Retrospectives**: Ticketing, Merging, Voting, Discussion, and Summary phases
@@ -14,6 +20,9 @@ A retrospective tool for agile teams.
 
 ### Required
 - `DATABASE_URL` - PostgreSQL connection string (default: `postgres://goretro:goretro@localhost:5432/goretro?sslmode=disable`)
+
+### Authentication
+**Note:** Authentication is handled by an OAuth2 proxy, not by environment variables. The application expects authentication headers from the proxy.
 
 ### Optional
 - `REDIS_URL` - Redis server address for distributed synchronization (format: `host:port`)
@@ -57,6 +66,27 @@ When the chat completion API is configured, moderators will see an "Auto-propose
 5. Mark AI-generated actions with a 🤖 robot icon prefix
 
 The moderator can optionally provide team context (tech stack, constraints, etc.) to get more relevant action suggestions. The AI focuses on the most important issues, especially those with more votes or marked as discussed.
+
+## Deployment
+
+### Docker Compose (Recommended)
+
+The easiest way to run GoRetro is with Docker Compose, which includes all required services including OAuth2 authentication:
+
+```bash
+# Clone the repository
+git clone https://github.com/Armatorix/GoRetro.git
+cd GoRetro
+
+# Start all services (PostgreSQL, Redis, App, OAuth2 Proxy, Dex)
+docker compose up -d
+
+# Access at http://localhost (through OAuth2 proxy)
+```
+
+**Important:** The application runs on port 8080 internally but should only be accessed through the OAuth2 proxy on port 80. Never expose port 8080 directly to users.
+
+For production, update the OAuth2 configuration in `docker-compose.yml` and `dex/config.yaml` with proper credentials, callback URLs, and OIDC providers.
 
 ## Usage
 
