@@ -68,11 +68,11 @@ window.translations.en = {
             pleaseWait: "Please wait while your access is being reviewed."
         },
         phases: {
-            ticketing: "1. Ticketing",
-            merging: "2. Merging",
-            voting: "3. Voting",
-            discussion: "4. Discussion",
-            summary: "5. Summary"
+            ticketing: "Ticketing",
+            merging: "Merging",
+            voting: "Voting",
+            discussion: "Discussion",
+            summary: "Summary"
         },
         votes: {
             info: "Votes used: {used} / {total}"

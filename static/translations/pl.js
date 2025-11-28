@@ -68,11 +68,11 @@ window.translations.pl = {
             pleaseWait: "Proszę czekać, Twój dostęp jest sprawdzany."
         },
         phases: {
-            ticketing: "1. Notatki",
-            merging: "2. Łączenie",
-            voting: "3. Głosowanie",
-            discussion: "4. Dyskusja",
-            summary: "5. Podsumowanie"
+            ticketing: "Notatki",
+            merging: "Łączenie",
+            voting: "Głosowanie",
+            discussion: "Dyskusja",
+            summary: "Podsumowanie"
         },
         votes: {
             info: "Wykorzystane głosy: {used} / {total}"

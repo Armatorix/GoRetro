@@ -72,7 +72,7 @@
                                 {{if eq .OwnerID $.User.ID}}
                                 <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium" data-i18n="index.myRooms.ownerBadge">Owner</span>
                                 {{end}}
-                                <span class="text-sm text-gray-500">{{.Phase}}</span>
+                                <span class="text-sm text-gray-500 room-phase" data-phase="{{.Phase}}"></span>
                             </div>
                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
@@ -119,6 +119,36 @@
             </div>
         </div>
     </main>
+    
+    <script>
+        // Translate room phases on page load and language change
+        function translatePhases() {
+            const phaseMapping = {
+                'TICKETING': 'room.phases.ticketing',
+                'MERGING': 'room.phases.merging',
+                'VOTING': 'room.phases.voting',
+                'DISCUSSION': 'room.phases.discussion',
+                'SUMMARY': 'room.phases.summary'
+            };
+            
+            document.querySelectorAll('.room-phase').forEach(element => {
+                const phase = element.getAttribute('data-phase');
+                if (phase && phaseMapping[phase]) {
+                    element.textContent = window.i18n.t(phaseMapping[phase]);
+                }
+            });
+        }
+        
+        // Translate phases on initial load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', translatePhases);
+        } else {
+            translatePhases();
+        }
+        
+        // Re-translate phases when language changes
+        window.addEventListener('languageChanged', translatePhases);
+    </script>
 </body>
 </html>
 {{end}}
