@@ -193,6 +193,7 @@ func (s *Service) ProposeActions(tickets map[string]*models.Ticket, teamContext,
 
 	// Build the prompt with ticket information
 	prompt := s.buildActionProposalPrompt(tickets, teamContext, language, sarcastic)
+	systemPrompt := s.buildActionProposalSystemPrompt(language, sarcastic)
 
 	// Create the chat completion request
 	reqBody := ChatCompletionRequest{
@@ -200,7 +201,7 @@ func (s *Service) ProposeActions(tickets map[string]*models.Ticket, teamContext,
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "You are an AI assistant helping teams create actionable items from retrospective feedback. Analyze the tickets and suggest concrete, specific action items that the team can take to address the issues raised. Return your response as a JSON object with an 'actions' array, where each action has 'content' (the action item text), 'ticket_id' (which ticket it addresses), and 'reason' (brief explanation).",
+				Content: systemPrompt,
 			},
 			{
 				Role:    "user",
@@ -254,6 +255,31 @@ func (s *Service) ProposeActions(tickets map[string]*models.Ticket, teamContext,
 	return &actionResp, nil
 }
 
+// buildActionProposalSystemPrompt creates a system prompt based on language and tone preferences
+func (s *Service) buildActionProposalSystemPrompt(language string, sarcastic bool) string {
+	basePrompt := "You are an AI assistant helping teams create actionable items from retrospective feedback. Analyze the tickets and suggest concrete, specific action items that the team can take to address the issues raised."
+
+	if language == "pl" {
+		basePrompt = "Jesteś asystentem AI pomagającym zespołom tworzyć konkretne zadania na podstawie feedbacku z retrospektywy. Przeanalizuj zgłoszenia i zasugeruj konkretne, szczegółowe zadania, które zespół może podjąć, aby rozwiązać poruszone kwestie."
+	}
+
+	toneAddition := ""
+	if sarcastic {
+		if language == "pl" {
+			toneAddition = " Używaj sarkastycznego, humorystycznego i lekko memowego tonu. Spraw, by były zabawne, ale wciąż użyteczne i wykonalne."
+		} else {
+			toneAddition = " Use a sarcastic, humorous, and slightly memish tone. Make them entertaining while still being actionable and useful."
+		}
+	}
+
+	jsonInstruction := " Return your response as a JSON object with an 'actions' array, where each action has 'content' (the action item text), 'ticket_id' (which ticket it addresses), and 'reason' (brief explanation)."
+	if language == "pl" {
+		jsonInstruction = " Zwróć odpowiedź jako obiekt JSON z tablicą 'actions', gdzie każde zadanie ma 'content' (tekst zadania), 'ticket_id' (które zgłoszenie dotyczy) i 'reason' (krótkie wyjaśnienie)."
+	}
+
+	return basePrompt + toneAddition + jsonInstruction
+}
+
 // buildActionProposalPrompt creates a prompt for the AI to suggest action items
 func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, teamContext, language string, sarcastic bool) string {
 	prompt := "Here are the retrospective tickets from the team:\n\n"
@@ -270,17 +296,7 @@ func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, t
 		prompt += fmt.Sprintf("\nAdditional team context:\n%s\n\n", teamContext)
 	}
 
-	languageInstruction := ""
-	if language != "" && language != "en" {
-		languageInstruction = fmt.Sprintf(" IMPORTANT: Respond in %s language.", language)
-	}
-
-	toneInstruction := ""
-	if sarcastic {
-		toneInstruction = " Use a sarcastic, humorous, and slightly memish tone in your action items. Make them entertaining while still being actionable and useful."
-	}
-
-	prompt += fmt.Sprintf(`Please analyze these retrospective tickets and suggest concrete, actionable items that the team can implement to address the feedback and issues raised.%s%s`, languageInstruction, toneInstruction) + `
+	instructionText := `Please analyze these retrospective tickets and suggest concrete, actionable items that the team can implement to address the feedback and issues raised.
 
 For each action item:
 1. Make it specific, measurable, and achievable
@@ -299,6 +315,30 @@ Return your response as a JSON object with this structure:
 }
 
 Focus on the most important issues (especially those with more votes or marked as covered/discussed). Suggest 3-7 action items maximum.`
+
+	if language == "pl" {
+		instructionText = `Proszę przeanalizować te zgłoszenia retrospektywne i zasugerować konkretne, wykonalne zadania, które zespół może wdrożyć, aby rozwiązać poruszone kwestie i feedback.
+
+Dla każdego zadania:
+1. Zrób je konkretnym, mierzalnym i osiągalnym
+2. Powiąż je z najbardziej odpowiednim ID zgłoszenia
+3. Podaj krótkie wyjaśnienie, jak rozwiązuje problem
+
+Zwróć odpowiedź jako obiekt JSON o tej strukturze:
+{
+  "actions": [
+    {
+      "content": "Tekst konkretnego zadania",
+      "ticket_id": "ticket-id",
+      "reason": "Krótkie wyjaśnienie, jak to rozwiązuje problem"
+    }
+  ]
+}
+
+Skup się na najważniejszych problemach (szczególnie tych z większą liczbą głosów lub oznaczonych jako omówione). Zasugeruj maksymalnie 3-7 zadań.`
+	}
+
+	prompt += instructionText
 
 	return prompt
 }
