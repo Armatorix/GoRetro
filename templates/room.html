@@ -161,7 +161,13 @@
                                 <div class="border rounded-md p-4 bg-green-50">
                                     <textarea id="action-content" rows="2" placeholder="Describe the action item..." 
                                               class="w-full border rounded-md p-2 mb-2 focus:border-secondary focus:ring-secondary"></textarea>
-                                    <label class="text-sm text-gray-600 mb-1 block font-medium">Assign to (click to select/deselect multiple):</label>
+                                    <div class="flex justify-between items-center mb-1">
+                                        <label class="text-sm text-gray-600 font-medium">Assign to (click to select/deselect multiple):</label>
+                                        <div class="flex space-x-2">
+                                            <button id="select-all-assignees" class="text-xs text-secondary hover:text-green-700 underline">Select All</button>
+                                            <button id="deselect-all-assignees" class="text-xs text-gray-600 hover:text-gray-800 underline">Deselect All</button>
+                                        </div>
+                                    </div>
                                     <select id="action-assignees" multiple size="5" class="w-full border rounded-md p-2 mb-2 focus:border-secondary focus:ring-secondary" style="min-height: 120px;">
                                         <!-- Participants will be populated here -->
                                     </select>
@@ -826,6 +832,22 @@
             document.getElementById('add-action-form').classList.remove('hidden');
             document.getElementById('action-content').focus();
             populateAssigneeDropdown();
+        };
+        
+        document.getElementById('select-all-assignees').onclick = function(e) {
+            e.preventDefault();
+            const select = document.getElementById('action-assignees');
+            for (let i = 0; i < select.options.length; i++) {
+                select.options[i].selected = true;
+            }
+        };
+        
+        document.getElementById('deselect-all-assignees').onclick = function(e) {
+            e.preventDefault();
+            const select = document.getElementById('action-assignees');
+            for (let i = 0; i < select.options.length; i++) {
+                select.options[i].selected = false;
+            }
         };
         
         document.getElementById('cancel-action').onclick = function() {
