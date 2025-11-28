@@ -63,9 +63,12 @@
                     {{range .Rooms}}
                     <li class="border rounded-md p-3 hover:bg-gray-50 transition-colors">
                         <a href="/rooms/{{.ID}}" class="flex justify-between items-center">
-                            <div>
+                            <div class="flex items-center gap-2">
                                 <span class="font-medium text-gray-800">{{.Name}}</span>
-                                <span class="text-sm text-gray-500 ml-2">{{.Phase}}</span>
+                                {{if eq .OwnerID $.User.ID}}
+                                <span class="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-medium">Owner</span>
+                                {{end}}
+                                <span class="text-sm text-gray-500">{{.Phase}}</span>
                             </div>
                             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
