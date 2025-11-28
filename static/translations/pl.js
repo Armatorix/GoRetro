@@ -5,7 +5,9 @@ window.translations.pl = {
     // Nawigacja
     nav: {
         title: "GoRetro",
-        user: "Użytkownik"
+        user: "Użytkownik",
+        darkMode: "Tryb ciemny",
+        lightMode: "Tryb jasny"
     },
     
     // Strona główna

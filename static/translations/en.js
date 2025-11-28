@@ -5,7 +5,9 @@ window.translations.en = {
     // Navigation
     nav: {
         title: "GoRetro",
-        user: "User"
+        user: "User",
+        darkMode: "Dark mode",
+        lightMode: "Light mode"
     },
     
     // Index page
