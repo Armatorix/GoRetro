@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GoRetro - A modern retrospective tool for agile teams with real-time collaboration and AI-powered features">
+    <title>GoRetro - Agile Retrospective Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --secondary-color: #64748b;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --border-color: #e2e8f0;
+            --code-bg: #f1f5f9;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.25rem;
+            opacity: 0.95;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .github-link {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.75rem 1.5rem;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.3s;
+        }
+
+        .github-link:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 0.75rem 2rem;
+            background-color: white;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--secondary-color);
+            transition: all 0.3s;
+            box-shadow: var(--shadow);
+        }
+
+        .tab-button:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .tab-button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .content-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        h3 {
+            color: var(--text-color);
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        h4 {
+            color: var(--text-color);
+            font-size: 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        ul, ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .feature-item {
+            background: linear-gradient(135deg, #f6f8fb 0%, #ffffff 100%);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: var(--shadow);
+        }
+
+        .feature-item h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-size: 1.25rem;
+        }
+
+        .feature-item p {
+            color: var(--secondary-color);
+            line-height: 1.6;
+        }
+
+        code {
+            background-color: var(--code-bg);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #e11d48;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            color: var(--text-color);
+        }
+
+        .env-var {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .env-var-name {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .env-var-required {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            background-color: #dc2626;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+            font-weight: 600;
+        }
+
+        .env-var-optional {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            background-color: #16a34a;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+            font-weight: 600;
+        }
+
+        .env-var-description {
+            margin-top: 0.5rem;
+            color: var(--secondary-color);
+        }
+
+        .env-var-default {
+            margin-top: 0.5rem;
+            font-style: italic;
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+        }
+
+        .phase-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .phase-list li {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #f6f8fb 0%, #ffffff 100%);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .phase-list strong {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--secondary-color);
+            background: white;
+            margin-top: 3rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .ai-feature {
+            background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%);
+            border-left-color: #f59e0b;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .warning-box {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .info-box {
+            background-color: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔄 GoRetro</h1>
+        <p>A modern retrospective tool for agile teams with real-time collaboration and AI-powered features</p>
+        <a href="https://github.com/Armatorix/GoRetro" class="github-link" target="_blank">
+            View on GitHub →
+        </a>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('features')">Features</button>
+            <button class="tab-button" onclick="switchTab('configuration')">Configuration</button>
+            <button class="tab-button" onclick="switchTab('deployment')">Deployment</button>
+            <button class="tab-button" onclick="switchTab('usage')">Usage Guide</button>
+        </div>
+
+        <div id="features" class="tab-content active">
+            <div class="content-card">
+                <h2>Core Features</h2>
+                
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <h3>🗂️ Multi-phase Retrospectives</h3>
+                        <p>Structured workflow with Ticketing, Merging, Voting, Discussion, and Summary phases</p>
+                    </div>
+
+                    <div class="feature-item">
+                        <h3>⚡ Real-time Collaboration</h3>
+                        <p>WebSocket-based synchronization with Redis support for distributed deployments</p>
+                    </div>
+
+                    <div class="feature-item">
+                        <h3>👥 Participant Management</h3>
+                        <p>Owner/Moderator roles with approval workflow for joining participants</p>
+                    </div>
+
+                    <div class="feature-item ai-feature">
+                        <h3>🤖 AI-Powered Auto-merge</h3>
+                        <p>Automatically group similar tickets using AI semantic analysis</p>
+                    </div>
+
+                    <div class="feature-item ai-feature">
+                        <h3>🎯 AI Action Proposals</h3>
+                        <p>Generate actionable items from retrospective feedback with context awareness</p>
+                    </div>
+
+                    <div class="feature-item">
+                        <h3>🌍 Internationalization</h3>
+                        <p>Multi-language support with automatic detection (English & Polish)</p>
+                    </div>
+
+                    <div class="feature-item">
+                        <h3>🔐 OAuth2 Authentication</h3>
+                        <p>Secure authentication with OAuth2 Proxy and Dex OIDC provider</p>
+                    </div>
+
+                    <div class="feature-item">
+                        <h3>🐳 Docker Support</h3>
+                        <p>Easy deployment with Docker Compose including all dependencies</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h2>Retrospective Phases</h2>
+                
+                <ul class="phase-list">
+                    <li>
+                        <strong>1. Ticketing Phase</strong><br>
+                        Team members add retrospective items in various categories (what went well, what needs improvement, action items, etc.)
+                    </li>
+                    <li>
+                        <strong>2. Merging Phase</strong><br>
+                        Group similar tickets together manually or use AI auto-merge to identify semantically similar items
+                    </li>
+                    <li>
+                        <strong>3. Voting Phase</strong><br>
+                        Team votes on the most important items to focus discussion on the highest priority topics
+                    </li>
+                    <li>
+                        <strong>4. Discussion Phase</strong><br>
+                        Discuss top-voted items and create actionable tasks to address them
+                    </li>
+                    <li>
+                        <strong>5. Summary Phase</strong><br>
+                        Review all feedback and action items, with optional AI-powered action proposals
+                    </li>
+                </ul>
+            </div>
+
+            <div class="content-card">
+                <h2>AI Features<span class="badge">Optional</span></h2>
+                
+                <h3>Auto-merge Feature</h3>
+                <p>When chat completion API is configured, moderators see an "Auto-merge" button during the Discussion phase.</p>
+                
+                <div class="info-box">
+                    <strong>How it works:</strong>
+                    <ul>
+                        <li>Analyzes all ticket content</li>
+                        <li>Identifies similar tickets based on semantic similarity</li>
+                        <li>Automatically groups related tickets together</li>
+                        <li>Provides reasoning for each grouping</li>
+                    </ul>
+                </div>
+
+                <h3>Auto-propose Actions Feature</h3>
+                <p>During the Summary phase, moderators can generate AI-powered action proposals from retrospective feedback.</p>
+                
+                <div class="info-box">
+                    <strong>Capabilities:</strong>
+                    <ul>
+                        <li>Analyzes all retrospective tickets and feedback</li>
+                        <li>Considers team context if provided (tech stack, constraints, etc.)</li>
+                        <li>Generates specific, actionable items addressing raised issues</li>
+                        <li>Links each action to the relevant ticket</li>
+                        <li>Marks AI-generated actions with a 🤖 robot icon prefix</li>
+                        <li>Focuses on the most important issues (higher votes, discussed items)</li>
+                    </ul>
+                </div>
+
+                <h4>Supported APIs</h4>
+                <p>Compatible with OpenAI-compatible chat completion APIs:</p>
+                <ul>
+                    <li>OpenAI API (GPT-4, GPT-4-turbo, GPT-3.5-turbo)</li>
+                    <li>Azure OpenAI Service</li>
+                    <li>Other OpenAI-compatible endpoints</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="configuration" class="tab-content">
+            <div class="content-card">
+                <h2>Environment Variables</h2>
+                
+                <h3>Database Configuration</h3>
+                
+                <div class="env-var">
+                    <div class="env-var-name">
+                        DATABASE_URL
+                        <span class="env-var-required">REQUIRED</span>
+                    </div>
+                    <div class="env-var-description">
+                        PostgreSQL connection string for storing retrospective data
+                    </div>
+                    <div class="env-var-default">
+                        Default: <code>postgres://goretro:goretro@localhost:5432/goretro?sslmode=disable</code>
+                    </div>
+                </div>
+
+                <h3>Redis Configuration</h3>
+                
+                <div class="env-var">
+                    <div class="env-var-name">
+                        REDIS_URL
+                        <span class="env-var-optional">OPTIONAL</span>
+                    </div>
+                    <div class="env-var-description">
+                        Redis server address for distributed WebSocket synchronization. Required when running multiple application instances.
+                    </div>
+                    <div class="env-var-default">
+                        Format: <code>host:port</code> (e.g., <code>redis:6379</code>)
+                    </div>
+                </div>
+
+                <h3>AI Features Configuration</h3>
+                
+                <div class="env-var">
+                    <div class="env-var-name">
+                        CHAT_COMPLETION_ENDPOINT
+                        <span class="env-var-optional">OPTIONAL</span>
+                    </div>
+                    <div class="env-var-description">
+                        Chat completion API endpoint for AI features (auto-merge and action proposals)
+                    </div>
+                    <div class="env-var-default">
+                        Example: <code>https://api.openai.com/v1/chat/completions</code>
+                    </div>
+                </div>
+
+                <div class="env-var">
+                    <div class="env-var-name">
+                        CHAT_COMPLETION_API_KEY
+                        <span class="env-var-optional">OPTIONAL</span>
+                    </div>
+                    <div class="env-var-description">
+                        API key for the chat completion service
+                    </div>
+                    <div class="env-var-default">
+                        Example: <code>sk-your-api-key-here</code>
+                    </div>
+                </div>
+
+                <div class="env-var">
+                    <div class="env-var-name">
+                        CHAT_COMPLETION_MODEL
+                        <span class="env-var-optional">OPTIONAL</span>
+                    </div>
+                    <div class="env-var-description">
+                        Model to use for chat completion
+                    </div>
+                    <div class="env-var-default">
+                        Default: <code>gpt-4</code><br>
+                        Options: <code>gpt-4</code>, <code>gpt-4-turbo</code>, <code>gpt-3.5-turbo</code>, etc.
+                    </div>
+                </div>
+
+                <h3>OAuth2 Configuration</h3>
+                
+                <div class="info-box">
+                    <strong>Note:</strong> OAuth2 authentication is configured via the docker-compose.yml file. See the Deployment tab for details.
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h2>Configuration Examples</h2>
+                
+                <h3>Minimal Configuration (Local Development)</h3>
+                <pre><code># .env file
+DATABASE_URL=postgres://goretro:goretro@localhost:5432/goretro?sslmode=disable</code></pre>
+
+                <h3>Production Configuration with AI Features</h3>
+                <pre><code># .env file
+DATABASE_URL=postgres://user:password@db-host:5432/goretro?sslmode=require
+REDIS_URL=redis-host:6379
+CHAT_COMPLETION_ENDPOINT=https://api.openai.com/v1/chat/completions
+CHAT_COMPLETION_API_KEY=sk-your-api-key-here
+CHAT_COMPLETION_MODEL=gpt-4</code></pre>
+
+                <h3>Azure OpenAI Configuration</h3>
+                <pre><code># .env file
+DATABASE_URL=postgres://user:password@db-host:5432/goretro?sslmode=require
+REDIS_URL=redis-host:6379
+CHAT_COMPLETION_ENDPOINT=https://your-resource.openai.azure.com/openai/deployments/your-deployment/chat/completions?api-version=2023-05-15
+CHAT_COMPLETION_API_KEY=your-azure-api-key
+CHAT_COMPLETION_MODEL=gpt-4</code></pre>
+            </div>
+        </div>
+
+        <div id="deployment" class="tab-content">
+            <div class="content-card">
+                <h2>Deployment Options</h2>
+                
+                <h3>Docker Compose (Recommended)</h3>
+                <p>The easiest way to deploy GoRetro is using Docker Compose, which includes all dependencies:</p>
+                
+                <h4>Prerequisites</h4>
+                <ul>
+                    <li>Docker and Docker Compose installed</li>
+                    <li>PostgreSQL database (included in docker-compose.yml)</li>
+                    <li>Redis (optional, included in docker-compose.yml)</li>
+                </ul>
+
+                <h4>Quick Start</h4>
+                <pre><code># Clone the repository
+git clone https://github.com/Armatorix/GoRetro.git
+cd GoRetro
+
+# Create .env file with your configuration
+cat > .env << EOF
+DATABASE_URL=postgres://goretro:goretro@postgres:5432/goretro?sslmode=disable
+REDIS_URL=redis:6379
+# Add AI configuration if desired
+# CHAT_COMPLETION_ENDPOINT=https://api.openai.com/v1/chat/completions
+# CHAT_COMPLETION_API_KEY=your-key-here
+EOF
+
+# Start all services
+docker compose up -d
+
+# Access the application
+# With OAuth2: http://localhost
+# Without OAuth2: http://localhost:8080</code></pre>
+
+                <h4>Services Included</h4>
+                <ul>
+                    <li><strong>PostgreSQL</strong> - Database on port 5432</li>
+                    <li><strong>Redis</strong> - Cache and pub/sub on port 6379</li>
+                    <li><strong>GoRetro App</strong> - Main application on port 8080</li>
+                    <li><strong>OAuth2 Proxy</strong> - Authentication layer on port 80</li>
+                    <li><strong>Dex</strong> - OIDC provider on port 5556</li>
+                </ul>
+
+                <div class="warning-box">
+                    <strong>⚠️ Security Note:</strong> The default docker-compose.yml includes OAuth2 authentication. For production use, update the OAuth2 configuration in docker-compose.yml and dex/config.yaml with proper credentials and OIDC providers.
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h2>Standalone Deployment</h2>
+                
+                <h3>Building from Source</h3>
+                <pre><code># Prerequisites: Go 1.21 or higher
+
+# Clone and build
+git clone https://github.com/Armatorix/GoRetro.git
+cd GoRetro
+go build -o goretro
+
+# Set environment variables
+export DATABASE_URL="postgres://user:password@localhost:5432/goretro?sslmode=disable"
+export REDIS_URL="localhost:6379"  # Optional
+
+# Run
+./goretro</code></pre>
+
+                <h3>Database Setup</h3>
+                <p>GoRetro uses PostgreSQL. You need to:</p>
+                <ol>
+                    <li>Create a PostgreSQL database</li>
+                    <li>Run migrations (handled automatically on startup)</li>
+                    <li>Configure DATABASE_URL environment variable</li>
+                </ol>
+
+                <h3>Scaling Considerations</h3>
+                <div class="info-box">
+                    <strong>Multiple Instances:</strong>
+                    <ul>
+                        <li>Configure REDIS_URL for WebSocket synchronization across instances</li>
+                        <li>Use a load balancer with sticky sessions for WebSocket connections</li>
+                        <li>Share the same PostgreSQL database across all instances</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h2>Development Setup</h2>
+                
+                <h3>Using Make</h3>
+                <pre><code># Start with hot-reload using Docker Compose watch mode
+make up</code></pre>
+
+                <h3>Manual Development</h3>
+                <pre><code># Start dependencies
+docker compose up postgres redis -d
+
+# Set environment variables
+export DATABASE_URL="postgres://goretro:goretro@localhost:5432/goretro?sslmode=disable"
+export REDIS_URL="localhost:6379"
+
+# Run with hot-reload (requires air or similar)
+go run main.go</code></pre>
+            </div>
+        </div>
+
+        <div id="usage" class="tab-content">
+            <div class="content-card">
+                <h2>Getting Started</h2>
+                
+                <h3>Creating a Retrospective</h3>
+                <ol>
+                    <li>Navigate to the GoRetro homepage</li>
+                    <li>Click "Create New Retrospective"</li>
+                    <li>Enter a room name and create the room</li>
+                    <li>Share the room link with your team members</li>
+                    <li>Approve participants as they join (as moderator/owner)</li>
+                </ol>
+
+                <h3>Running a Retrospective</h3>
+                
+                <h4>Phase 1: Ticketing</h4>
+                <ul>
+                    <li>Team members add tickets in various categories</li>
+                    <li>Everyone can see tickets as they're created (real-time updates)</li>
+                    <li>Tickets can be edited or deleted by their creators</li>
+                    <li>When ready, moderator advances to the next phase</li>
+                </ul>
+
+                <h4>Phase 2: Merging</h4>
+                <ul>
+                    <li><strong>Manual:</strong> Drag similar tickets together to group them</li>
+                    <li><strong>AI-Powered:</strong> Click "Auto-merge" to let AI identify and group similar tickets (requires AI configuration)</li>
+                    <li>Review and adjust groupings as needed</li>
+                    <li>Advance to voting when satisfied with groupings</li>
+                </ul>
+
+                <h4>Phase 3: Voting</h4>
+                <ul>
+                    <li>Each team member gets a limited number of votes</li>
+                    <li>Vote on the most important items for discussion</li>
+                    <li>Votes are visible to all participants</li>
+                    <li>When voting is complete, advance to discussion</li>
+                </ul>
+
+                <h4>Phase 4: Discussion</h4>
+                <ul>
+                    <li>Focus on the highest-voted items</li>
+                    <li>Mark items as "discussed" as you cover them</li>
+                    <li>Create action items to address issues</li>
+                    <li>Assign action items to team members</li>
+                    <li>Move to summary when discussion is complete</li>
+                </ul>
+
+                <h4>Phase 5: Summary</h4>
+                <ul>
+                    <li>Review all tickets and action items</li>
+                    <li><strong>AI-Powered:</strong> Click "Auto-propose" to generate additional action proposals (requires AI configuration)</li>
+                    <li>Provide team context for more relevant AI suggestions</li>
+                    <li>Review and accept/edit AI-generated actions (marked with 🤖)</li>
+                    <li>Export or save the retrospective summary</li>
+                </ul>
+            </div>
+
+            <div class="content-card">
+                <h2>Best Practices</h2>
+                
+                <h3>Effective Retrospectives</h3>
+                <ul>
+                    <li><strong>Time-box phases:</strong> Set time limits for each phase to keep the retrospective focused</li>
+                    <li><strong>Encourage participation:</strong> Ensure all team members contribute tickets and votes</li>
+                    <li><strong>Focus on actions:</strong> The goal is actionable improvements, not just discussion</li>
+                    <li><strong>Follow up:</strong> Review action items from previous retrospectives</li>
+                </ul>
+
+                <h3>Using AI Features Effectively</h3>
+                <ul>
+                    <li><strong>Auto-merge:</strong> Use after initial ticketing to identify patterns you might have missed</li>
+                    <li><strong>Review AI groupings:</strong> AI suggestions are helpful but not perfect—adjust as needed</li>
+                    <li><strong>Provide context:</strong> When using auto-propose, give team context (tech stack, current sprint goals) for better suggestions</li>
+                    <li><strong>Edit AI actions:</strong> Use AI proposals as a starting point and refine them for your team</li>
+                </ul>
+
+                <h3>Team Size Considerations</h3>
+                <ul>
+                    <li><strong>Small teams (3-5):</strong> Standard workflow works well</li>
+                    <li><strong>Medium teams (6-10):</strong> Consider using AI auto-merge to handle more tickets</li>
+                    <li><strong>Large teams (10+):</strong> Consider breaking into smaller groups or using AI features heavily</li>
+                </ul>
+            </div>
+
+            <div class="content-card">
+                <h2>Language Support</h2>
+                
+                <p>GoRetro supports multiple languages with automatic browser detection:</p>
+                
+                <ul>
+                    <li><strong>English (en)</strong> - Default language</li>
+                    <li><strong>Polish (pl)</strong> - Full Polish translation</li>
+                </ul>
+
+                <h3>Language Selection</h3>
+                <ul>
+                    <li>Automatically detects browser language on first visit</li>
+                    <li>Language selector in navigation bar for manual switching</li>
+                    <li>Preference saved in localStorage and cookies</li>
+                    <li>Changes take effect immediately without page reload</li>
+                </ul>
+            </div>
+
+            <div class="content-card">
+                <h2>Troubleshooting</h2>
+                
+                <h3>Common Issues</h3>
+                
+                <h4>WebSocket Connection Issues</h4>
+                <ul>
+                    <li>Check that the application is running and accessible</li>
+                    <li>Verify firewall settings allow WebSocket connections</li>
+                    <li>For distributed setups, ensure Redis is properly configured</li>
+                </ul>
+
+                <h4>AI Features Not Available</h4>
+                <ul>
+                    <li>Verify <code>CHAT_COMPLETION_ENDPOINT</code> and <code>CHAT_COMPLETION_API_KEY</code> are set</li>
+                    <li>Check API key is valid and has sufficient credits/quota</li>
+                    <li>Ensure endpoint URL is correct and accessible</li>
+                    <li>Check application logs for API error messages</li>
+                </ul>
+
+                <h4>Database Connection Errors</h4>
+                <ul>
+                    <li>Verify PostgreSQL is running</li>
+                    <li>Check <code>DATABASE_URL</code> is correctly formatted</li>
+                    <li>Ensure database user has proper permissions</li>
+                    <li>Verify database exists and migrations have run</li>
+                </ul>
+
+                <h4>Authentication Issues</h4>
+                <ul>
+                    <li>For OAuth2 setup, verify Dex and OAuth2 Proxy configurations</li>
+                    <li>Check redirect URLs match your deployment</li>
+                    <li>Ensure cookies are enabled in the browser</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>GoRetro - Open Source Retrospective Tool</p>
+        <p>Built with ❤️ for Agile Teams</p>
+        <p><a href="https://github.com/Armatorix/GoRetro" target="_blank" style="color: #2563eb;">GitHub Repository</a></p>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+
+            // Update URL hash without scrolling
+            history.replaceState(null, null, '#' + tabName);
+        }
+
+        // Check URL hash on load and switch to that tab
+        window.addEventListener('DOMContentLoaded', () => {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                const button = document.querySelector(`[onclick="switchTab('${hash}')"]`);
+                if (button) {
+                    button.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
