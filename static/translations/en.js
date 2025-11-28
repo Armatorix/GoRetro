@@ -7,7 +7,8 @@ window.translations.en = {
         title: "GoRetro",
         user: "User",
         darkMode: "Dark mode",
-        lightMode: "Light mode"
+        lightMode: "Light mode",
+        logout: "Logout"
     },
     
     // Index page

@@ -7,7 +7,8 @@ window.translations.pl = {
         title: "GoRetro",
         user: "Użytkownik",
         darkMode: "Tryb ciemny",
-        lightMode: "Tryb jasny"
+        lightMode: "Tryb jasny",
+        logout: "Wyloguj"
     },
     
     // Strona główna

@@ -301,6 +301,35 @@ func (h *Handler) writePump(client *websocket.Client) {
 	}
 }
 
+// Logout handles user logout by clearing cookies and redirecting
+func (h *Handler) Logout(c echo.Context) error {
+	// Clear OAuth2 proxy cookies
+	cookie := &http.Cookie{
+		Name:     "_oauth2_proxy",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+	}
+	c.SetCookie(cookie)
+
+	// Clear session cookie
+	sessionCookie := &http.Cookie{
+		Name:     "_oauth2_proxy_csrf",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   false, // Set to true in production with HTTPS
+	}
+	c.SetCookie(sessionCookie)
+
+	// Redirect to OAuth2 proxy sign-out endpoint which will clear server-side session
+	// and then redirect to the home page
+	return c.Redirect(http.StatusFound, "/oauth2/sign_out?rd=/")
+}
+
 func (h *Handler) readPump(client *websocket.Client, room *models.Room) {
 	defer func() {
 		h.hub.Unregister(client)

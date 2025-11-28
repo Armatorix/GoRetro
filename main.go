@@ -142,6 +142,9 @@ func main() {
 	// API routes
 	e.GET("/api/rooms/:id", h.GetRoomAPI)
 
+	// Auth routes
+	e.GET("/logout", h.Logout)
+
 	// WebSocket
 	e.GET("/ws/:id", h.WebSocket)
 
