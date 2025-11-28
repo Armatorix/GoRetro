@@ -8,6 +8,7 @@ A retrospective tool for agile teams.
 - **Real-time Collaboration**: WebSocket-based real-time updates
 - **Participant Management**: Owner/Moderator roles with approval workflow
 - **AI-Powered Auto-merge**: Automatically group similar tickets using AI (optional feature)
+- **AI-Powered Action Proposals**: Generate actionable items from retrospective feedback (optional feature)
 
 ## Environment Variables
 
@@ -44,6 +45,18 @@ export CHAT_COMPLETION_API_KEY="sk-your-api-key-here"
 export CHAT_COMPLETION_MODEL="gpt-4"  # Optional, defaults to gpt-4
 # Other model options: gpt-4-turbo, gpt-3.5-turbo, etc.
 ```
+
+## Auto-propose Actions Feature
+
+When the chat completion API is configured, moderators will see an "Auto-propose" button during the SUMMARY phase. This feature uses AI to:
+
+1. Analyze all retrospective tickets and feedback
+2. Consider team context if provided
+3. Generate specific, actionable items that address the issues raised
+4. Link each action to the relevant ticket
+5. Mark AI-generated actions with a 🤖 robot icon prefix
+
+The moderator can optionally provide team context (tech stack, constraints, etc.) to get more relevant action suggestions. The AI focuses on the most important issues, especially those with more votes or marked as discussed.
 
 ## Usage
 

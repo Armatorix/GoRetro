@@ -225,9 +225,28 @@
                         <div id="actions-container" class="hidden mt-6">
                             <div class="flex justify-between items-center mb-3">
                                 <h3 class="text-md font-semibold text-gray-700" data-i18n="room.actions.title">Action Items</h3>
-                                <button id="add-action-btn" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors text-sm hidden" data-i18n="room.actions.addButton">
-                                    + Add Action
-                                </button>
+                                <div class="flex gap-2">
+                                    <button id="auto-propose-actions-btn" class="bg-purple-600 text-white px-3 py-1.5 rounded-md hover:bg-purple-700 transition-colors text-sm hidden" data-i18n="room.actions.autoPropose">
+                                        🤖 Auto-propose
+                                    </button>
+                                    <button id="add-action-btn" class="bg-secondary text-white px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors text-sm hidden" data-i18n="room.actions.addButton">
+                                        + Add Action
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Auto-propose Action Form -->
+                            <div id="auto-propose-form" class="hidden mb-4">
+                                <div class="border rounded-md p-4 bg-purple-50">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="room.actions.teamContextLabel">Team Context (optional):</label>
+                                    <textarea id="team-context" rows="3" data-i18n="room.actions.teamContextPlaceholder" placeholder="Add context about your team, tech stack, or constraints..." 
+                                              class="w-full border rounded-md p-2 mb-2 focus:border-purple-500 focus:ring-purple-500"></textarea>
+                                    <p class="text-xs text-gray-600 mb-3" data-i18n="room.actions.teamContextHelp">This helps AI suggest more relevant actions for your specific situation.</p>
+                                    <div class="flex justify-end space-x-2">
+                                        <button id="cancel-auto-propose" class="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm" data-i18n="room.actions.cancel">Cancel</button>
+                                        <button id="submit-auto-propose" class="bg-purple-600 text-white px-3 py-1.5 rounded-md hover:bg-purple-700 text-sm" data-i18n="room.actions.generate">Generate Actions</button>
+                                    </div>
+                                </div>
                             </div>
                             
                             <!-- Add Action Form -->
@@ -566,6 +585,12 @@
                 case 'auto_merge_complete':
                     handleAutoMergeComplete(msg.payload);
                     break;
+                case 'auto_propose_progress':
+                    handleAutoProposeProgress(msg.payload);
+                    break;
+                case 'auto_propose_complete':
+                    handleAutoProposeComplete(msg.payload);
+                    break;
                 case 'error':
                     showToast(msg.payload.message);
                     break;
@@ -751,6 +776,29 @@
             
             const message = window.i18n.t('room.tickets.autoMergeComplete', { 
                 count: payload.merges_applied 
+            });
+            showToast(message, 'success');
+        }
+        
+        function handleAutoProposeProgress(payload) {
+            const autoProposeBtn = document.getElementById('auto-propose-actions-btn');
+            autoProposeBtn.disabled = true;
+            autoProposeBtn.textContent = window.i18n.t('room.actions.autoProposing');
+            autoProposeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        
+        function handleAutoProposeComplete(payload) {
+            const autoProposeBtn = document.getElementById('auto-propose-actions-btn');
+            autoProposeBtn.disabled = false;
+            autoProposeBtn.textContent = window.i18n.t('room.actions.autoPropose');
+            autoProposeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            // Hide the form
+            document.getElementById('auto-propose-form').classList.add('hidden');
+            document.getElementById('team-context').value = '';
+            
+            const message = window.i18n.t('room.actions.autoProposeComplete', { 
+                count: payload.actions_created 
             });
             showToast(message, 'success');
         }
@@ -1115,6 +1163,12 @@
             } else {
                 autoMergeBtn.classList.add('hidden');
             }
+
+            if (state.phase === 'DISCUSSION' && state.isModeratorOrOwner) {
+                document.getElementById('auto-propose-actions-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('auto-propose-actions-btn').classList.add('hidden');
+            }
             
             // Hide add action form when phase changes
             if (addActionForm) {
@@ -1462,6 +1516,27 @@
             if (confirm(window.i18n.t('room.tickets.autoMergeConfirm'))) {
                 send({ type: 'auto_merge_tickets', payload: {} });
             }
+        };
+        
+        // Auto-propose actions functionality
+        document.getElementById('auto-propose-actions-btn').onclick = function() {
+            document.getElementById('auto-propose-form').classList.remove('hidden');
+            document.getElementById('team-context').focus();
+        };
+        
+        document.getElementById('cancel-auto-propose').onclick = function() {
+            document.getElementById('auto-propose-form').classList.add('hidden');
+            document.getElementById('team-context').value = '';
+        };
+        
+        document.getElementById('submit-auto-propose').onclick = function() {
+            const teamContext = document.getElementById('team-context').value.trim();
+            send({ 
+                type: 'auto_propose_actions', 
+                payload: { 
+                    team_context: teamContext 
+                } 
+            });
         };
         
         // Auto-approve toggle event listener

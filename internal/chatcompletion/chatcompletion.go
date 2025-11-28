@@ -172,3 +172,123 @@ Only suggest merges where tickets are clearly related. If no tickets should be m
 
 	return prompt
 }
+
+// ActionSuggestion represents an AI-suggested action item
+type ActionSuggestion struct {
+	Content  string `json:"content"`
+	TicketID string `json:"ticket_id"`
+	Reason   string `json:"reason"`
+}
+
+// AutoProposeActionsResponse represents the AI's suggested action items
+type AutoProposeActionsResponse struct {
+	Actions []ActionSuggestion `json:"actions"`
+}
+
+// ProposeActions uses AI to suggest action items based on tickets
+func (s *Service) ProposeActions(tickets map[string]*models.Ticket, teamContext string) (*AutoProposeActionsResponse, error) {
+	if !s.IsConfigured() {
+		return nil, fmt.Errorf("chat completion service not configured")
+	}
+
+	// Build the prompt with ticket information
+	prompt := s.buildActionProposalPrompt(tickets, teamContext)
+
+	// Create the chat completion request
+	reqBody := ChatCompletionRequest{
+		Model: s.model,
+		Messages: []Message{
+			{
+				Role:    "system",
+				Content: "You are an AI assistant helping teams create actionable items from retrospective feedback. Analyze the tickets and suggest concrete, specific action items that the team can take to address the issues raised. Return your response as a JSON object with an 'actions' array, where each action has 'content' (the action item text), 'ticket_id' (which ticket it addresses), and 'reason' (brief explanation).",
+			},
+			{
+				Role:    "user",
+				Content: prompt,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("POST", s.endpoint, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+
+	// Send request
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response
+	var chatResp ChatCompletionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(chatResp.Choices) == 0 {
+		return nil, fmt.Errorf("no completion choices returned")
+	}
+
+	// Parse the AI's JSON response
+	var actionResp AutoProposeActionsResponse
+	if err := json.Unmarshal([]byte(chatResp.Choices[0].Message.Content), &actionResp); err != nil {
+		return nil, fmt.Errorf("failed to parse AI response: %w", err)
+	}
+
+	return &actionResp, nil
+}
+
+// buildActionProposalPrompt creates a prompt for the AI to suggest action items
+func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, teamContext string) string {
+	prompt := "Here are the retrospective tickets from the team:\n\n"
+
+	for id, ticket := range tickets {
+		// Skip child tickets (already merged)
+		if ticket.DeduplicationTicketID != nil {
+			continue
+		}
+		prompt += fmt.Sprintf("Ticket ID: %s\nContent: %s\nVotes: %d\nCovered: %v\n\n", id, ticket.Content, ticket.Votes, ticket.Covered)
+	}
+
+	if teamContext != "" {
+		prompt += fmt.Sprintf("\nAdditional team context:\n%s\n\n", teamContext)
+	}
+
+	prompt += `Analyze these retrospective tickets and suggest concrete, actionable items that the team can implement to address the feedback and issues raised. 
+
+For each action item:
+1. Make it specific, measurable, and achievable
+2. Link it to the most relevant ticket ID
+3. Provide a brief reason explaining how it addresses the ticket
+
+Return your response as a JSON object with this structure:
+{
+  "actions": [
+    {
+      "content": "Specific action item text",
+      "ticket_id": "ticket-id",
+      "reason": "Brief explanation of how this addresses the issue"
+    }
+  ]
+}
+
+Focus on the most important issues (especially those with more votes or marked as covered/discussed). Suggest 3-7 action items maximum.`
+
+	return prompt
+}

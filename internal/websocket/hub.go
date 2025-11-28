@@ -251,6 +251,8 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleSetAutoApprove(client, room, message.Payload)
 	case MsgAutoMergeTickets:
 		h.handleAutoMergeTickets(client, room, message.Payload)
+	case MsgAutoProposeActions:
+		h.handleAutoProposeActions(client, room, message.Payload)
 	default:
 		h.sendError(client, "Unknown message type")
 	}
@@ -1024,6 +1026,100 @@ func (h *Hub) handleAutoMergeTickets(client *Client, room *models.Room, payload 
 		Payload: map[string]any{
 			"merges_applied": mergesApplied,
 			"groups_count":   len(mergeResponse.MergeGroups),
+		},
+	}
+	completeBytes, _ := json.Marshal(completeMsg)
+	h.SendToClient(room.ID, client.ID, completeBytes)
+}
+
+func (h *Hub) handleAutoProposeActions(client *Client, room *models.Room, payload map[string]any) {
+	// Only moderators/owners can trigger auto-propose
+	if !room.IsModeratorOrOwner(client.ID) {
+		h.sendError(client, "Only moderators can trigger auto-propose actions")
+		return
+	}
+
+	// Only available in DISCUSSION phase
+	if room.Phase != models.PhaseDiscussion {
+		h.sendError(client, "Auto-propose actions is only available during summary phase")
+		return
+	}
+
+	// Check if chat completion service is configured
+	if h.chatCompletion == nil || !h.chatCompletion.IsConfigured() {
+		h.sendError(client, "Chat completion service not configured")
+		return
+	}
+
+	// Get team context from payload (optional)
+	teamContext := ""
+	if ctx, ok := payload["team_context"].(string); ok {
+		teamContext = ctx
+	}
+
+	// Send progress message
+	progressMsg := Message{
+		Type: MsgAutoProposeProgress,
+		Payload: map[string]any{
+			"status": "analyzing",
+		},
+	}
+	progressBytes, _ := json.Marshal(progressMsg)
+	h.SendToClient(room.ID, client.ID, progressBytes)
+
+	// Get all tickets
+	room.RLock()
+	tickets := make(map[string]*models.Ticket)
+	for id, ticket := range room.Tickets {
+		tickets[id] = ticket
+	}
+	room.RUnlock()
+
+	// Call AI service to get action suggestions
+	actionResponse, err := h.chatCompletion.ProposeActions(tickets, teamContext)
+	if err != nil {
+		log.Printf("Auto-propose actions failed: %v", err)
+		h.sendError(client, fmt.Sprintf("Auto-propose actions failed: %v", err))
+		return
+	}
+
+	// Create the suggested actions with robot icon prefix
+	actionsCreated := 0
+	for _, suggestion := range actionResponse.Actions {
+		action := &models.ActionTicket{
+			ID:          uuid.New().String(),
+			Content:     "🤖 " + suggestion.Content,
+			TicketID:    suggestion.TicketID,
+			AssigneeIDs: []string{},
+			CreatedAt:   time.Now(),
+		}
+
+		room.AddActionTicket(action)
+		actionsCreated++
+
+		// Broadcast the new action
+		response := Message{
+			Type: MsgActionAdded,
+			Payload: map[string]any{
+				"action": action,
+			},
+		}
+		responseBytes, _ := json.Marshal(response)
+		h.BroadcastToApprovedParticipants(room.ID, responseBytes)
+	}
+
+	// Persist changes to database
+	if err := h.store.Update(room); err != nil {
+		log.Printf("Failed to save auto-proposed actions: %v", err)
+		h.sendError(client, "Failed to save actions")
+		return
+	}
+
+	// Send completion message
+	completeMsg := Message{
+		Type: MsgAutoProposeComplete,
+		Payload: map[string]any{
+			"actions_created": actionsCreated,
 		},
 	}
 	completeBytes, _ := json.Marshal(completeMsg)

@@ -109,7 +109,14 @@ window.translations.en = {
             noActions: "No action items yet.",
             cancel: "Cancel",
             add: "Add Action",
-            deleteConfirm: "Are you sure you want to delete this action item?"
+            deleteConfirm: "Are you sure you want to delete this action item?",
+            autoPropose: "🤖 Auto-propose",
+            autoProposing: "⏳ Analyzing...",
+            teamContextLabel: "Team Context (optional):",
+            teamContextPlaceholder: "Add context about your team, tech stack, or constraints...",
+            teamContextHelp: "This helps AI suggest more relevant actions for your specific situation.",
+            generate: "Generate Actions",
+            autoProposeComplete: "AI suggested {count} action items!"
         },
         participants: {
             title: "Participants",

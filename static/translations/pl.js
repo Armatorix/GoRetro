@@ -103,13 +103,20 @@ window.translations.pl = {
             addButton: "+ Dodaj Zadanie",
             placeholder: "Opisz zadanie do wykonania...",
             assignLabel: "Przypisz do (kliknij, aby zaznaczyć/odznaczyć):",
-            selectAll: "Zaznacz Wszystko",
-            deselectAll: "Odznacz Wszystko",
+            selectAll: "Zaznacz Wszystkie",
+            deselectAll: "Odznacz Wszystkie",
             assignedTo: "Przypisane do: {names}",
             noActions: "Brak zadań do wykonania.",
             cancel: "Anuluj",
             add: "Dodaj Zadanie",
-            deleteConfirm: "Czy na pewno chcesz usunąć to zadanie?"
+            deleteConfirm: "Czy na pewno chcesz usunąć to zadanie?",
+            autoPropose: "🤖 Auto-propozycje",
+            autoProposing: "⏳ Analizuję...",
+            teamContextLabel: "Kontekst zespołu (opcjonalnie):",
+            teamContextPlaceholder: "Dodaj kontekst o zespole, stosie technologicznym lub ograniczeniach...",
+            teamContextHelp: "To pomoże AI zasugerować bardziej trafne działania dla Twojej sytuacji.",
+            generate: "Generuj Zadania",
+            autoProposeComplete: "AI zasugerowało {count} zadań!"
         },
         participants: {
             title: "Uczestnicy",
