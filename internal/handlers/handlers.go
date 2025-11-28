@@ -25,15 +25,19 @@ var upgrader = gorillaWS.Upgrader{
 
 // Handler contains all HTTP handlers
 type Handler struct {
-	store *models.RoomStore
-	hub   *websocket.Hub
+	store        *models.RoomStore
+	hub          *websocket.Hub
+	chatEndpoint string
+	chatAPIKey   string
 }
 
 // NewHandler creates a new handler
-func NewHandler(store *models.RoomStore, hub *websocket.Hub) *Handler {
+func NewHandler(store *models.RoomStore, hub *websocket.Hub, chatEndpoint, chatAPIKey string) *Handler {
 	return &Handler{
-		store: store,
-		hub:   hub,
+		store:        store,
+		hub:          hub,
+		chatEndpoint: chatEndpoint,
+		chatAPIKey:   chatAPIKey,
 	}
 }
 

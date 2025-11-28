@@ -25,6 +25,7 @@ const (
 	MsgApproveParticipant MessageType = "approve_participant"
 	MsgRejectParticipant  MessageType = "reject_participant"
 	MsgSetAutoApprove     MessageType = "set_auto_approve"
+	MsgAutoMergeTickets   MessageType = "auto_merge_tickets"
 
 	// Server to client messages
 	MsgRoomState           MessageType = "room_state"
@@ -43,6 +44,8 @@ const (
 	MsgParticipantApproved MessageType = "participant_approved"
 	MsgParticipantRejected MessageType = "participant_rejected"
 	MsgAutoApproveChanged  MessageType = "auto_approve_changed"
+	MsgAutoMergeProgress   MessageType = "auto_merge_progress"
+	MsgAutoMergeComplete   MessageType = "auto_merge_complete"
 	MsgError               MessageType = "error"
 )
 

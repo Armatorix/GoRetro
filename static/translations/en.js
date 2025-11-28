@@ -92,7 +92,11 @@ window.translations.en = {
             separateFromParent: "Separate from parent",
             deleteConfirmTitle: "Delete Ticket",
             deleteConfirmMessage: "Are you sure you want to delete this ticket? This action cannot be undone.",
-            delete: "Delete"
+            delete: "Delete",
+            autoMerge: "🤖 Auto-merge",
+            autoMerging: "⏳ Analyzing...",
+            autoMergeConfirm: "Use AI to automatically group similar tickets? This will analyze ticket content and suggest merges.",
+            autoMergeComplete: "Auto-merge completed! {count} tickets were grouped."
         },
         actions: {
             title: "Action Items",

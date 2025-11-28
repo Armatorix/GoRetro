@@ -194,9 +194,14 @@
                     <div class="bg-white rounded-lg shadow p-6">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-lg font-semibold text-gray-800" data-i18n="room.tickets.title">Tickets</h2>
-                            <button id="add-ticket-btn" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors text-sm" data-i18n="room.tickets.addButton">
-                                + Add Ticket
-                            </button>
+                            <div class="flex gap-2">
+                                <button id="auto-merge-btn" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors text-sm hidden" data-i18n="room.tickets.autoMerge">
+                                    🤖 Auto-merge
+                                </button>
+                                <button id="add-ticket-btn" class="bg-primary text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors text-sm" data-i18n="room.tickets.addButton">
+                                    + Add Ticket
+                                </button>
+                            </div>
                         </div>
                         
                         <!-- Add Ticket Form -->
@@ -555,6 +560,12 @@
                 case 'auto_approve_changed':
                     handleAutoApproveChanged(msg.payload);
                     break;
+                case 'auto_merge_progress':
+                    handleAutoMergeProgress(msg.payload);
+                    break;
+                case 'auto_merge_complete':
+                    handleAutoMergeComplete(msg.payload);
+                    break;
                 case 'error':
                     showToast(msg.payload.message);
                     break;
@@ -723,6 +734,25 @@
         function handleAutoApproveChanged(payload) {
             state.autoApprove = payload.auto_approve;
             updateAutoApproveToggle();
+        }
+        
+        function handleAutoMergeProgress(payload) {
+            const autoMergeBtn = document.getElementById('auto-merge-btn');
+            autoMergeBtn.disabled = true;
+            autoMergeBtn.textContent = window.i18n.t('room.tickets.autoMerging');
+            autoMergeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+        
+        function handleAutoMergeComplete(payload) {
+            const autoMergeBtn = document.getElementById('auto-merge-btn');
+            autoMergeBtn.disabled = false;
+            autoMergeBtn.textContent = window.i18n.t('room.tickets.autoMerge');
+            autoMergeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            const message = window.i18n.t('room.tickets.autoMergeComplete', { 
+                count: payload.merges_applied 
+            });
+            showToast(message, 'success');
         }
         
         function updateAutoApproveToggle() {
@@ -1069,6 +1099,7 @@
             const addTicketBtn = document.getElementById('add-ticket-btn');
             const addTicketForm = document.getElementById('add-ticket-form');
             const addActionForm = document.getElementById('add-action-form');
+            const autoMergeBtn = document.getElementById('auto-merge-btn');
             
             // Show/hide add ticket button based on phase
             if (state.phase === 'TICKETING') {
@@ -1076,6 +1107,13 @@
             } else {
                 addTicketBtn.classList.add('hidden');
                 addTicketForm.classList.add('hidden');
+            }
+            
+            // Show/hide auto-merge button based on phase and moderator status
+            if (state.phase === 'DISCUSSION' && state.isModeratorOrOwner) {
+                autoMergeBtn.classList.remove('hidden');
+            } else {
+                autoMergeBtn.classList.add('hidden');
             }
             
             // Hide add action form when phase changes
@@ -1416,6 +1454,13 @@
                         user_id: userId
                     }
                 });
+            }
+        };
+        
+        // Auto-merge functionality
+        document.getElementById('auto-merge-btn').onclick = function() {
+            if (confirm(window.i18n.t('room.tickets.autoMergeConfirm'))) {
+                send({ type: 'auto_merge_tickets', payload: {} });
             }
         };
         

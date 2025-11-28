@@ -92,7 +92,11 @@ window.translations.pl = {
             separateFromParent: "Oddziel od głównej",
             deleteConfirmTitle: "Usuń Notatkę",
             deleteConfirmMessage: "Czy na pewno chcesz usunąć tę notatkę? Tej operacji nie można cofnąć.",
-            delete: "Usuń"
+            delete: "Usuń",
+            autoMerge: "🤖 Auto-łączenie",
+            autoMerging: "⏳ Analizuję...",
+            autoMergeConfirm: "Użyć AI do automatycznego grupowania podobnych notatek? System przeanalizuje treść i zasugeruje połączenia.",
+            autoMergeComplete: "Auto-łączenie zakończone! {count} notatek zostało zgrupowanych."
         },
         actions: {
             title: "Zadania do Wykonania",

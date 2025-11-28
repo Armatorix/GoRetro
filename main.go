@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/Armatorix/GoRetro/internal/chatcompletion"
 	"github.com/Armatorix/GoRetro/internal/handlers"
 	"github.com/Armatorix/GoRetro/internal/models"
 	"github.com/Armatorix/GoRetro/internal/websocket"
@@ -94,10 +95,24 @@ func main() {
 		log.Println("REDIS_URL not set, running in local-only mode")
 	}
 
-	// Initialize handlers
-	h := handlers.NewHandler(store, hub)
+	// Get chat completion configuration from environment (optional)
+	chatEndpoint := os.Getenv("CHAT_COMPLETION_ENDPOINT")
+	chatAPIKey := os.Getenv("CHAT_COMPLETION_API_KEY")
+	chatModel := os.Getenv("CHAT_COMPLETION_MODEL")
+	if chatModel == "" {
+		chatModel = "gpt-4" // Default model
+	}
 
-	// Create Echo instance
+	if chatEndpoint != "" && chatAPIKey != "" {
+		log.Printf("Chat completion API configured - auto-merge feature enabled (model: %s)", chatModel)
+		chatService := chatcompletion.NewService(chatEndpoint, chatAPIKey, chatModel)
+		hub.SetChatCompletion(chatService)
+	} else {
+		log.Println("Chat completion API not configured - auto-merge feature disabled")
+	}
+
+	// Initialize handlers
+	h := handlers.NewHandler(store, hub, chatEndpoint, chatAPIKey) // Create Echo instance
 	e := echo.New()
 
 	// Middleware

@@ -2,10 +2,12 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 	"time"
 
+	"github.com/Armatorix/GoRetro/internal/chatcompletion"
 	"github.com/Armatorix/GoRetro/internal/models"
 	"github.com/google/uuid"
 )
@@ -13,12 +15,13 @@ import (
 // Hub maintains the set of active clients and broadcasts messages
 type Hub struct {
 	// Room ID -> Client ID -> Client
-	rooms       map[string]map[string]*Client
-	store       *models.RoomStore
-	register    chan *Client
-	unregister  chan *Client
-	mu          sync.RWMutex
-	redisPubSub *RedisPubSub
+	rooms          map[string]map[string]*Client
+	store          *models.RoomStore
+	register       chan *Client
+	unregister     chan *Client
+	mu             sync.RWMutex
+	redisPubSub    *RedisPubSub
+	chatCompletion *chatcompletion.Service
 }
 
 // NewHub creates a new Hub
@@ -34,6 +37,11 @@ func NewHub(store *models.RoomStore) *Hub {
 // SetRedisPubSub sets the Redis pub/sub manager (optional for distributed mode)
 func (h *Hub) SetRedisPubSub(redisPubSub *RedisPubSub) {
 	h.redisPubSub = redisPubSub
+}
+
+// SetChatCompletion sets the chat completion service (optional for auto-merge feature)
+func (h *Hub) SetChatCompletion(chatCompletion *chatcompletion.Service) {
+	h.chatCompletion = chatCompletion
 }
 
 // Run starts the hub's main loop
@@ -241,6 +249,8 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleRejectParticipant(client, room, message.Payload)
 	case MsgSetAutoApprove:
 		h.handleSetAutoApprove(client, room, message.Payload)
+	case MsgAutoMergeTickets:
+		h.handleAutoMergeTickets(client, room, message.Payload)
 	default:
 		h.sendError(client, "Unknown message type")
 	}
@@ -902,4 +912,120 @@ func (h *Hub) NotifyParticipantPending(room *models.Room, participant *models.Pa
 	}
 	responseBytes, _ := json.Marshal(response)
 	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
+func (h *Hub) handleAutoMergeTickets(client *Client, room *models.Room, payload map[string]any) {
+	// Only moderators/owners can trigger auto-merge
+	if !room.IsModeratorOrOwner(client.ID) {
+		h.sendError(client, "Only moderators can trigger auto-merge")
+		return
+	}
+
+	// Only available in DISCUSSION phase
+	if room.Phase != models.PhaseDiscussion {
+		h.sendError(client, "Auto-merge is only available during discussion phase")
+		return
+	}
+
+	// Check if chat completion service is configured
+	if h.chatCompletion == nil || !h.chatCompletion.IsConfigured() {
+		h.sendError(client, "Chat completion service not configured")
+		return
+	}
+
+	// Send progress message
+	progressMsg := Message{
+		Type: MsgAutoMergeProgress,
+		Payload: map[string]any{
+			"status": "analyzing",
+		},
+	}
+	progressBytes, _ := json.Marshal(progressMsg)
+	h.SendToClient(room.ID, client.ID, progressBytes)
+
+	// Get all tickets
+	room.RLock()
+	tickets := make(map[string]*models.Ticket)
+	for id, ticket := range room.Tickets {
+		tickets[id] = ticket
+	}
+	room.RUnlock()
+
+	// Call AI service to get merge suggestions
+	mergeResponse, err := h.chatCompletion.SuggestMerges(tickets)
+	if err != nil {
+		log.Printf("Auto-merge failed: %v", err)
+		h.sendError(client, fmt.Sprintf("Auto-merge failed: %v", err))
+		return
+	}
+
+	// Apply the suggested merges
+	mergesApplied := 0
+	for _, group := range mergeResponse.MergeGroups {
+		// Validate that parent ticket exists
+		parentTicket, ok := room.GetTicket(group.ParentTicketID)
+		if !ok {
+			log.Printf("Parent ticket %s not found, skipping group", group.ParentTicketID)
+			continue
+		}
+
+		// Skip if parent is already a child
+		if parentTicket.DeduplicationTicketID != nil {
+			log.Printf("Parent ticket %s is already a child, skipping group", group.ParentTicketID)
+			continue
+		}
+
+		// Apply merges for this group
+		for _, childID := range group.ChildTicketIDs {
+			childTicket, ok := room.GetTicket(childID)
+			if !ok {
+				log.Printf("Child ticket %s not found, skipping", childID)
+				continue
+			}
+
+			// Skip if already merged
+			if childTicket.DeduplicationTicketID != nil {
+				continue
+			}
+
+			// Skip if trying to merge with itself
+			if childID == group.ParentTicketID {
+				continue
+			}
+
+			// Merge the child into the parent by setting deduplication_ticket_id
+			room.Lock()
+			childTicket.DeduplicationTicketID = &group.ParentTicketID
+			room.Unlock()
+			mergesApplied++
+
+			// Broadcast the ticket update
+			response := Message{
+				Type: MsgTicketUpdated,
+				Payload: map[string]any{
+					"ticket": childTicket,
+				},
+			}
+			responseBytes, _ := json.Marshal(response)
+			h.BroadcastToApprovedParticipants(room.ID, responseBytes)
+		}
+	}
+
+	// Persist changes to database
+	if err := h.store.Update(room); err != nil {
+		log.Printf("Failed to save auto-merge changes: %v", err)
+		h.sendError(client, "Failed to save changes")
+		return
+	}
+
+	// Send completion message
+	completeMsg := Message{
+		Type: MsgAutoMergeComplete,
+		Payload: map[string]any{
+			"merges_applied": mergesApplied,
+			"groups_count":   len(mergeResponse.MergeGroups),
+		},
+	}
+	completeBytes, _ := json.Marshal(completeMsg)
+	h.SendToClient(room.ID, client.ID, completeBytes)
 }
