@@ -290,6 +290,71 @@
         let reconnectInterval = 1000; // Start with 1 second
         let reconnectTimer = null;
         let isIntentionalClose = false;
+        let isConnected = false;
+        
+        function disableAllActions() {
+            // Disable all buttons and interactive elements
+            const buttons = document.querySelectorAll('button:not(#cancel-delete-modal)');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            });
+            
+            // Disable textareas
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                textarea.disabled = true;
+                textarea.style.opacity = '0.5';
+            });
+            
+            // Disable select elements
+            const selects = document.querySelectorAll('select');
+            selects.forEach(select => {
+                select.disabled = true;
+                select.style.opacity = '0.5';
+            });
+            
+            // Disable dragging
+            const draggables = document.querySelectorAll('[draggable="true"]');
+            draggables.forEach(elem => {
+                elem.draggable = false;
+                elem.style.cursor = 'not-allowed';
+            });
+        }
+        
+        function enableAllActions() {
+            // Enable all buttons
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.style.opacity = '';
+                btn.style.cursor = '';
+            });
+            
+            // Enable textareas
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                textarea.disabled = false;
+                textarea.style.opacity = '';
+            });
+            
+            // Enable select elements
+            const selects = document.querySelectorAll('select');
+            selects.forEach(select => {
+                select.disabled = false;
+                select.style.opacity = '';
+            });
+            
+            // Re-enable dragging if in brainstorming phase
+            if (state.phase === 'BRAINSTORMING') {
+                const draggables = document.querySelectorAll('.ticket.draggable');
+                draggables.forEach(elem => {
+                    elem.draggable = true;
+                    elem.style.cursor = '';
+                });
+            }
+        }
         
         function connectWebSocket() {
             ws = new WebSocket(`${protocol}//${window.location.host}/ws/${roomId}`);
@@ -299,11 +364,15 @@
                 document.getElementById('connection-status').textContent = 'Connected';
                 reconnectAttempts = 0;
                 reconnectInterval = 1000;
+                isConnected = true;
+                enableAllActions();
             };
             
             ws.onclose = function() {
                 document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800';
                 document.getElementById('connection-status').textContent = 'Disconnected';
+                isConnected = false;
+                disableAllActions();
                 
                 // Only attempt to reconnect if it wasn't intentional
                 if (!isIntentionalClose) {
@@ -314,6 +383,8 @@
             ws.onerror = function() {
                 document.getElementById('connection-status').className = 'text-sm px-2 py-1 rounded bg-red-100 text-red-800';
                 document.getElementById('connection-status').textContent = 'Error';
+                isConnected = false;
+                disableAllActions();
             };
             
             ws.onmessage = function(event) {
@@ -562,6 +633,13 @@
             renderParticipants();
             renderVotesInfo();
             updateUIForPhase();
+            
+            // Re-apply connection state after rendering
+            if (!isConnected) {
+                disableAllActions();
+            } else {
+                enableAllActions();
+            }
         }
         
         function renderPhaseIndicator() {
@@ -904,8 +982,10 @@
         }
         
         function send(msg) {
-            if (ws.readyState === WebSocket.OPEN) {
+            if (ws && ws.readyState === WebSocket.OPEN && isConnected) {
                 ws.send(JSON.stringify(msg));
+            } else {
+                showToast('Cannot perform action: disconnected from server');
             }
         }
         
