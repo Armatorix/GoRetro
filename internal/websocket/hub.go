@@ -76,15 +76,13 @@ func (h *Hub) Unregister(client *Client) {
 // broadcastToRoomLocal sends a message to all local clients in a room
 func (h *Hub) broadcastToRoomLocal(roomID string, msg []byte) {
 	h.mu.RLock()
-	clients, ok := h.rooms[roomID]
-	h.mu.RUnlock()
+	defer h.mu.RUnlock()
 
+	clients, ok := h.rooms[roomID]
 	if !ok {
 		return
 	}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
 	for _, client := range clients {
 		client.SendMessage(msg)
 	}
@@ -106,15 +104,13 @@ func (h *Hub) BroadcastToRoom(roomID string, msg []byte) {
 // broadcastToRoomExceptLocal sends a message to all local clients except one
 func (h *Hub) broadcastToRoomExceptLocal(roomID, exceptClientID string, msg []byte) {
 	h.mu.RLock()
-	clients, ok := h.rooms[roomID]
-	h.mu.RUnlock()
+	defer h.mu.RUnlock()
 
+	clients, ok := h.rooms[roomID]
 	if !ok {
 		return
 	}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
 	for id, client := range clients {
 		if id != exceptClientID {
 			client.SendMessage(msg)
@@ -143,15 +139,13 @@ func (h *Hub) broadcastToApprovedParticipantsLocal(roomID string, msg []byte) {
 	}
 
 	h.mu.RLock()
-	clients, ok := h.rooms[roomID]
-	h.mu.RUnlock()
+	defer h.mu.RUnlock()
 
+	clients, ok := h.rooms[roomID]
 	if !ok {
 		return
 	}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
 	for clientID, client := range clients {
 		// Only send to approved participants
 		if _, isApproved := room.GetParticipant(clientID); isApproved {

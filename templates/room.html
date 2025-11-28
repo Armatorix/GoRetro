@@ -975,7 +975,7 @@
                 const roleTranslated = window.i18n.t(`room.participants.${p.role}`);
                 
                 return `
-                    <li class="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+                    <li class="flex flex-col items-center justify-between p-2 rounded hover:bg-gray-50">
                         <div class="flex items-center">
                             <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-medium">
                                 ${(p.user.name || 'U').charAt(0).toUpperCase()}
@@ -985,7 +985,7 @@
                                 <span class="text-xs ${roleColor} ml-1">(${roleTranslated})</span>
                             </div>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-1">
                             ${canChangeRole ? `
                                 <button 
                                     onclick="toggleModeratorRole('${p.user.id}', ${isModerator})" 

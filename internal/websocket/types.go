@@ -11,8 +11,6 @@ type MessageType string
 
 const (
 	// Client to server messages
-	MsgJoinRoom           MessageType = "join_room"
-	MsgLeaveRoom          MessageType = "leave_room"
 	MsgAddTicket          MessageType = "add_ticket"
 	MsgEditTicket         MessageType = "edit_ticket"
 	MsgDeleteTicket       MessageType = "delete_ticket"

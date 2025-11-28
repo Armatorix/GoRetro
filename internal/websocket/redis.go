@@ -12,7 +12,6 @@ import (
 type RedisPubSub struct {
 	client        *redis.Client
 	ctx           context.Context
-	cancel        context.CancelFunc
 	hub           *Hub
 	channelPrefix string
 }
@@ -28,11 +27,9 @@ type RedisMessage struct {
 
 // NewRedisPubSub creates a new Redis pub/sub manager
 func NewRedisPubSub(client *redis.Client, hub *Hub) *RedisPubSub {
-	ctx, cancel := context.WithCancel(context.Background())
 	return &RedisPubSub{
 		client:        client,
-		ctx:           ctx,
-		cancel:        cancel,
+		ctx:           context.Background(),
 		hub:           hub,
 		channelPrefix: "goretro:broadcast:",
 	}
@@ -47,20 +44,19 @@ func (r *RedisPubSub) Start() {
 	log.Println("Redis pub/sub started, listening for broadcast messages")
 
 	ch := pubsub.Channel()
-	for {
-		select {
-		case <-r.ctx.Done():
-			log.Println("Redis pub/sub stopped")
-			return
-		case msg := <-ch:
-			r.handleRedisMessage(msg)
-		}
+	for msg := range ch {
+		r.handleRedisMessage(msg)
 	}
+
+	log.Println("Redis pub/sub stopped")
 }
 
 // Stop stops the Redis pub/sub listener
 func (r *RedisPubSub) Stop() {
-	r.cancel()
+	// Close the Redis client connection which will cause the channel to close
+	if err := r.client.Close(); err != nil {
+		log.Printf("Error closing Redis client: %v", err)
+	}
 }
 
 // handleRedisMessage processes incoming Redis messages and broadcasts them locally
