@@ -14,7 +14,7 @@ window.translations.en = {
         createRoom: {
             title: "Create New Retrospective",
             roomNameLabel: "Room Name",
-            roomNamePlaceholder: "Sprint Retrospective",
+            roomNamePlaceholder: "Retrospective",
             votesLabel: "Votes per User",
             createButton: "Create Room"
         },

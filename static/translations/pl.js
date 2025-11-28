@@ -14,7 +14,7 @@ window.translations.pl = {
         createRoom: {
             title: "Utwórz Nową Retrospektywę",
             roomNameLabel: "Nazwa Pokoju",
-            roomNamePlaceholder: "Retrospektywa Sprintu",
+            roomNamePlaceholder: "Retrospektywa",
             votesLabel: "Głosy na Użytkownika",
             createButton: "Utwórz Pokój"
         },
