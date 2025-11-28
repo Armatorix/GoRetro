@@ -85,7 +85,7 @@ window.translations.pl = {
             submit: "Wyślij",
             noTickets: "Brak notatek. Bądź pierwszy, który doda!",
             votes: "{count} głosów",
-            coveredBadge: "✓ Omówione",
+            coveredBadge: "Omówione",
             markCovered: "Oznacz jako omówione",
             markNotCovered: "Oznacz jako nieomówione",
             unmergeAll: "Rozdziel wszystkie",

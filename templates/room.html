@@ -56,26 +56,39 @@
             font-size: 1.2rem;
         }
         .covered-ticket {
-            opacity: 0.6;
+            opacity: 0.7;
             position: relative;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
+            border-color: #86efac !important;
         }
         .covered-ticket::after {
             content: '';
             position: absolute;
             top: 50%;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background-color: #10B981;
+            left: 5%;
+            right: 5%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #10B981, transparent);
             transform: translateY(-50%);
+            border-radius: 2px;
+            box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
         }
         .covered-badge {
-            background-color: #10B981;
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
             color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
+            padding: 4px 12px;
+            border-radius: 12px;
             font-size: 0.75rem;
             font-weight: 600;
+            box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .covered-badge::before {
+            content: '✓';
+            font-weight: bold;
+            font-size: 0.875rem;
         }
         .phase-indicator {
             transition: all 0.3s;
@@ -849,9 +862,14 @@
                                     <button class="${isCovered ? 'text-green-600' : 'text-gray-400'} hover:text-green-600" 
                                             onclick="toggleCovered('${ticket.id}', ${isCovered})"
                                             title="${window.i18n.t(isCovered ? 'room.tickets.markNotCovered' : 'room.tickets.markCovered')}">
-                                        <svg class="w-5 h-5" fill="${isCovered ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                        </svg>
+                                        ${isCovered ? 
+                                            `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                            </svg>` :
+                                            `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>`
+                                        }
                                     </button>
                                 ` : ''}
                                 ${canEdit && state.phase === 'TICKETING' ? `
