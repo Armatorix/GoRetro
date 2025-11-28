@@ -1556,7 +1556,8 @@
             
             const teamContext = document.getElementById('team-context').value.trim();
             const sarcastic = document.getElementById('sarcastic-mode').checked;
-            const language = window.i18n.currentLanguage || 'en';
+            const language = window.i18n && window.i18n.getCurrentLanguage ? window.i18n.getCurrentLanguage() : 'en';
+            console.log('Sending auto_propose_actions with language:', language);
             send({ 
                 type: 'auto_propose_actions', 
                 payload: { 

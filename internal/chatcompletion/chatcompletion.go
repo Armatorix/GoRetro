@@ -282,7 +282,12 @@ func (s *Service) buildActionProposalSystemPrompt(language string, sarcastic boo
 
 // buildActionProposalPrompt creates a prompt for the AI to suggest action items
 func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, teamContext, language string, sarcastic bool) string {
-	prompt := "Here are the retrospective tickets from the team:\n\n"
+	// Localize the header
+	headerText := "Here are the retrospective tickets from the team:\n\n"
+	if language == "pl" {
+		headerText = "Oto zgłoszenia retrospektywne od zespołu:\n\n"
+	}
+	prompt := headerText
 
 	for id, ticket := range tickets {
 		// Skip child tickets (already merged)
@@ -293,7 +298,11 @@ func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, t
 	}
 
 	if teamContext != "" {
-		prompt += fmt.Sprintf("\nAdditional team context:\n%s\n\n", teamContext)
+		contextLabel := "\nAdditional team context:\n%s\n\n"
+		if language == "pl" {
+			contextLabel = "\nDodatkowy kontekst zespołu:\n%s\n\n"
+		}
+		prompt += fmt.Sprintf(contextLabel, teamContext)
 	}
 
 	instructionText := `Please analyze these retrospective tickets and suggest concrete, actionable items that the team can implement to address the feedback and issues raised.

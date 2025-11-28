@@ -195,6 +195,9 @@
         t: t,
         setLanguage: setLanguage,
         getCurrentLanguage: getCurrentLanguage,
+        get currentLanguage() {
+            return currentLanguage;
+        },
         translatePage: translatePage,
         initLanguage: initLanguage,
         initLanguageSelector: initLanguageSelector,
