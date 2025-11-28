@@ -245,6 +245,21 @@
                 <div class="lg:col-span-1">
                     <div class="bg-white rounded-lg shadow p-6">
                         <h2 class="text-lg font-semibold text-gray-800 mb-4" data-i18n="room.participants.title">Participants</h2>
+                        
+                        <!-- Auto-approve toggle (only visible to moderators/owners) -->
+                        <div id="auto-approve-container" class="mb-4 pb-4 border-b border-gray-200 hidden">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label for="auto-approve-toggle" class="text-sm font-medium text-gray-700" data-i18n="room.participants.autoApproveLabel">Auto-approve participants</label>
+                                    <p class="text-xs text-gray-500 mt-1" data-i18n="room.participants.autoApproveHelp">New participants join automatically</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="auto-approve-toggle" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                </label>
+                            </div>
+                        </div>
+                        
                         <ul id="participants-list" class="space-y-2">
                             <!-- Participants will be rendered here -->
                         </ul>
@@ -328,7 +343,8 @@
             votesPerUser: 3,
             votesUsed: 0,
             isModeratorOrOwner: false,
-            isPending: false
+            isPending: false,
+            autoApprove: false
         };
         
         // WebSocket connection with auto-reconnect
@@ -523,6 +539,9 @@
                 case 'participant_rejected':
                     handleParticipantRejected(msg.payload);
                     break;
+                case 'auto_approve_changed':
+                    handleAutoApproveChanged(msg.payload);
+                    break;
                 case 'error':
                     showToast(msg.payload.message);
                     break;
@@ -555,6 +574,7 @@
             state.actions = payload.action_tickets || {};
             state.participants = payload.participants || {};
             state.pendingParticipants = payload.pending_participants || {};
+            state.autoApprove = payload.auto_approve || false;
             
             // Check if current user is approved or pending
             const currentParticipant = state.participants[userId];
@@ -570,6 +590,9 @@
                 state.isModeratorOrOwner = false;
                 document.getElementById('pending-overlay').classList.remove('hidden');
             }
+            
+            // Update auto-approve toggle
+            updateAutoApproveToggle();
             
             renderAll();
         }
@@ -682,6 +705,23 @@
                 }, 2000);
             }
             renderParticipants();
+        }
+        
+        function handleAutoApproveChanged(payload) {
+            state.autoApprove = payload.auto_approve;
+            updateAutoApproveToggle();
+        }
+        
+        function updateAutoApproveToggle() {
+            const autoApproveContainer = document.getElementById('auto-approve-container');
+            const autoApproveToggle = document.getElementById('auto-approve-toggle');
+            
+            if (state.isModeratorOrOwner) {
+                autoApproveContainer.classList.remove('hidden');
+                autoApproveToggle.checked = state.autoApprove;
+            } else {
+                autoApproveContainer.classList.add('hidden');
+            }
         }
         
         function renderAll() {
@@ -1360,6 +1400,19 @@
                 });
             }
         };
+        
+        // Auto-approve toggle event listener
+        const autoApproveToggle = document.getElementById('auto-approve-toggle');
+        if (autoApproveToggle) {
+            autoApproveToggle.addEventListener('change', function(e) {
+                send({
+                    type: 'set_auto_approve',
+                    payload: {
+                        auto_approve: e.target.checked
+                    }
+                });
+            });
+        }
         
         window.unmergeChild = unmergeChild;
         window.unmergeTicket = unmergeTicket;

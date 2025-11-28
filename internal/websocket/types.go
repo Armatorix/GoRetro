@@ -26,6 +26,7 @@ const (
 	MsgRemoveUser         MessageType = "remove_user"
 	MsgApproveParticipant MessageType = "approve_participant"
 	MsgRejectParticipant  MessageType = "reject_participant"
+	MsgSetAutoApprove     MessageType = "set_auto_approve"
 
 	// Server to client messages
 	MsgRoomState           MessageType = "room_state"
@@ -43,6 +44,7 @@ const (
 	MsgParticipantPending  MessageType = "participant_pending"
 	MsgParticipantApproved MessageType = "participant_approved"
 	MsgParticipantRejected MessageType = "participant_rejected"
+	MsgAutoApproveChanged  MessageType = "auto_approve_changed"
 	MsgError               MessageType = "error"
 )
 

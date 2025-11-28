@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     owner_id VARCHAR(255) NOT NULL,
     phase VARCHAR(50) NOT NULL,
     votes_per_user INTEGER NOT NULL,
+    auto_approve BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP NOT NULL
 );
 

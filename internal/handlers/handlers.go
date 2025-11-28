@@ -171,7 +171,12 @@ func (h *Handler) GetRoom(c echo.Context) error {
 	// Add user as pending participant if not already a participant or pending
 	if _, exists := room.GetParticipant(user.ID); !exists {
 		if _, pendingExists := room.GetPendingParticipant(user.ID); !pendingExists {
-			room.AddParticipant(user, models.RoleParticipant, models.StatusPending)
+			// Auto-approve if the setting is enabled
+			if room.AutoApprove {
+				room.AddParticipant(user, models.RoleParticipant, models.StatusApproved)
+			} else {
+				room.AddParticipant(user, models.RoleParticipant, models.StatusPending)
+			}
 			// Update room in store
 			if err := h.store.Update(room); err != nil {
 				return c.String(http.StatusInternalServerError, "Failed to update room")
@@ -254,14 +259,23 @@ func (h *Handler) WebSocket(c echo.Context) error {
 		h.hub.SendPendingRoomState(client, room)
 		h.hub.NotifyParticipantPending(room, pendingParticipant)
 	} else {
-		// User is not yet added - add as pending
-		room.AddParticipant(user, models.RoleParticipant, models.StatusPending)
-		if err := h.store.Update(room); err != nil {
-			return c.String(http.StatusInternalServerError, "Failed to update room")
+		// User is not yet added - add as approved if auto-approve is enabled, otherwise pending
+		if room.AutoApprove {
+			room.AddParticipant(user, models.RoleParticipant, models.StatusApproved)
+			if err := h.store.Update(room); err != nil {
+				return c.String(http.StatusInternalServerError, "Failed to update room")
+			}
+			h.hub.NotifyUserJoined(room, user)
+			h.hub.SendRoomState(client, room)
+		} else {
+			room.AddParticipant(user, models.RoleParticipant, models.StatusPending)
+			if err := h.store.Update(room); err != nil {
+				return c.String(http.StatusInternalServerError, "Failed to update room")
+			}
+			pendingParticipant, _ := room.GetPendingParticipant(user.ID)
+			h.hub.SendPendingRoomState(client, room)
+			h.hub.NotifyParticipantPending(room, pendingParticipant)
 		}
-		pendingParticipant, _ := room.GetPendingParticipant(user.ID)
-		h.hub.SendPendingRoomState(client, room)
-		h.hub.NotifyParticipantPending(room, pendingParticipant)
 	}
 
 	// Start goroutines for reading and writing

@@ -124,7 +124,9 @@ window.translations.pl = {
             removeFromRoom: "Usuń z pokoju",
             removeConfirm: "Czy na pewno chcesz usunąć tego uczestnika z pokoju?",
             rejectConfirm: "Czy na pewno chcesz odrzucić tego uczestnika?",
-            noParticipants: "Brak uczestników"
+            noParticipants: "Brak uczestników",
+            autoApproveLabel: "Automatyczne zatwierdzanie uczestników",
+            autoApproveHelp: "Nowi uczestnicy dołączają automatycznie"
         },
         messages: {
             cannotPerformDisconnected: "Nie można wykonać akcji: brak połączenia z serwerem",

@@ -186,6 +186,8 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleApproveParticipant(client, room, message.Payload)
 	case MsgRejectParticipant:
 		h.handleRejectParticipant(client, room, message.Payload)
+	case MsgSetAutoApprove:
+		h.handleSetAutoApprove(client, room, message.Payload)
 	default:
 		h.sendError(client, "Unknown message type")
 	}
@@ -727,6 +729,36 @@ func (h *Hub) handleRejectParticipant(client *Client, room *models.Room, payload
 	h.BroadcastToRoom(room.ID, responseBytes)
 }
 
+func (h *Hub) handleSetAutoApprove(client *Client, room *models.Room, payload map[string]any) {
+	if !room.IsModeratorOrOwner(client.ID) {
+		h.sendError(client, "Only moderator or owner can change auto-approve setting")
+		return
+	}
+
+	autoApprove, ok := payload["auto_approve"].(bool)
+	if !ok {
+		h.sendError(client, "Invalid auto_approve value")
+		return
+	}
+
+	room.SetAutoApprove(autoApprove)
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to update auto-approve setting")
+		return
+	}
+
+	response := Message{
+		Type: MsgAutoApproveChanged,
+		Payload: map[string]any{
+			"auto_approve": autoApprove,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
 func (h *Hub) sendError(client *Client, message string) {
 	response := Message{
 		Type: MsgError,
@@ -750,6 +782,7 @@ func (h *Hub) SendRoomState(client *Client, room *models.Room) {
 			"name":                 room.Name,
 			"phase":                room.Phase,
 			"votes_per_user":       room.VotesPerUser,
+			"auto_approve":         room.AutoApprove,
 			"participants":         room.Participants,
 			"pending_participants": room.PendingParticipants,
 			"tickets":              room.Tickets,

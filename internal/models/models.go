@@ -76,6 +76,7 @@ type Room struct {
 	OwnerID             string                   `json:"owner_id"`
 	Phase               Phase                    `json:"phase"`
 	VotesPerUser        int                      `json:"votes_per_user"`
+	AutoApprove         bool                     `json:"auto_approve"`
 	Participants        map[string]*Participant  `json:"participants"`
 	PendingParticipants map[string]*Participant  `json:"pending_participants"`
 	Tickets             map[string]*Ticket       `json:"tickets"`
@@ -92,6 +93,7 @@ func NewRoom(id, name, ownerID string, votesPerUser int) *Room {
 		OwnerID:             ownerID,
 		Phase:               PhaseTicketing,
 		VotesPerUser:        votesPerUser,
+		AutoApprove:         false,
 		Participants:        make(map[string]*Participant),
 		PendingParticipants: make(map[string]*Participant),
 		Tickets:             make(map[string]*Ticket),
@@ -308,4 +310,11 @@ func (r *Room) Unvote(userID, ticketID string) bool {
 		}
 	}
 	return false
+}
+
+// SetAutoApprove sets the auto-approve setting for the room
+func (r *Room) SetAutoApprove(autoApprove bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.AutoApprove = autoApprove
 }

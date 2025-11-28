@@ -124,7 +124,9 @@ window.translations.en = {
             removeFromRoom: "Remove from room",
             removeConfirm: "Are you sure you want to remove this participant from the room?",
             rejectConfirm: "Are you sure you want to reject this participant?",
-            noParticipants: "No participants"
+            noParticipants: "No participants",
+            autoApproveLabel: "Auto-approve participants",
+            autoApproveHelp: "New participants join automatically"
         },
         messages: {
             cannotPerformDisconnected: "Cannot perform action: disconnected from server",

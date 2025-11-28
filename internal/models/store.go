@@ -40,9 +40,9 @@ func (s *RoomStore) Create(room *Room) error {
 
 	// Insert room
 	_, err = tx.Exec(`
-		INSERT INTO rooms (id, name, owner_id, phase, votes_per_user, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, room.ID, room.Name, room.OwnerID, room.Phase, room.VotesPerUser, room.CreatedAt)
+		INSERT INTO rooms (id, name, owner_id, phase, votes_per_user, auto_approve, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, room.ID, room.Name, room.OwnerID, room.Phase, room.VotesPerUser, room.AutoApprove, room.CreatedAt)
 	if err != nil {
 		return err
 	}
@@ -86,9 +86,9 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	// Get room data
 	err := s.db.QueryRow(`
-		SELECT id, name, owner_id, phase, votes_per_user, created_at
+		SELECT id, name, owner_id, phase, votes_per_user, auto_approve, created_at
 		FROM rooms WHERE id = $1
-	`, id).Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.CreatedAt)
+	`, id).Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.AutoApprove, &room.CreatedAt)
 	if err != nil {
 		return nil, false
 	}
@@ -178,7 +178,7 @@ func (s *RoomStore) Delete(id string) error {
 // List returns all rooms
 func (s *RoomStore) List() []*Room {
 	rows, err := s.db.Query(`
-		SELECT id, name, owner_id, phase, votes_per_user, created_at
+		SELECT id, name, owner_id, phase, votes_per_user, auto_approve, created_at
 		FROM rooms
 	`)
 	if err != nil {
@@ -189,7 +189,7 @@ func (s *RoomStore) List() []*Room {
 	rooms := make([]*Room, 0)
 	for rows.Next() {
 		var room Room
-		err := rows.Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.CreatedAt)
+		err := rows.Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.AutoApprove, &room.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -206,7 +206,7 @@ func (s *RoomStore) List() []*Room {
 // ListByOwner returns all rooms owned by a user
 func (s *RoomStore) ListByOwner(ownerID string) []*Room {
 	rows, err := s.db.Query(`
-		SELECT id, name, owner_id, phase, votes_per_user, created_at
+		SELECT id, name, owner_id, phase, votes_per_user, auto_approve, created_at
 		FROM rooms WHERE owner_id = $1
 	`, ownerID)
 	if err != nil {
@@ -217,7 +217,7 @@ func (s *RoomStore) ListByOwner(ownerID string) []*Room {
 	rooms := make([]*Room, 0)
 	for rows.Next() {
 		var room Room
-		err := rows.Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.CreatedAt)
+		err := rows.Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.AutoApprove, &room.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -234,7 +234,7 @@ func (s *RoomStore) ListByOwner(ownerID string) []*Room {
 // ListByParticipant returns all rooms where user is a participant
 func (s *RoomStore) ListByParticipant(userID string) []*Room {
 	rows, err := s.db.Query(`
-		SELECT DISTINCT r.id, r.name, r.owner_id, r.phase, r.votes_per_user, r.created_at
+		SELECT DISTINCT r.id, r.name, r.owner_id, r.phase, r.votes_per_user, r.auto_approve, r.created_at
 		FROM rooms r
 		INNER JOIN participants p ON r.id = p.room_id
 		WHERE p.user_id = $1 AND p.status = 'approved'
@@ -247,7 +247,7 @@ func (s *RoomStore) ListByParticipant(userID string) []*Room {
 	rooms := make([]*Room, 0)
 	for rows.Next() {
 		var room Room
-		err := rows.Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.CreatedAt)
+		err := rows.Scan(&room.ID, &room.Name, &room.OwnerID, &room.Phase, &room.VotesPerUser, &room.AutoApprove, &room.CreatedAt)
 		if err != nil {
 			continue
 		}
@@ -271,9 +271,9 @@ func (s *RoomStore) Update(room *Room) error {
 
 	// Update room
 	_, err = tx.Exec(`
-		UPDATE rooms SET name = $1, owner_id = $2, phase = $3, votes_per_user = $4
-		WHERE id = $5
-	`, room.Name, room.OwnerID, room.Phase, room.VotesPerUser, room.ID)
+		UPDATE rooms SET name = $1, owner_id = $2, phase = $3, votes_per_user = $4, auto_approve = $5
+		WHERE id = $6
+	`, room.Name, room.OwnerID, room.Phase, room.VotesPerUser, room.AutoApprove, room.ID)
 	if err != nil {
 		return err
 	}
