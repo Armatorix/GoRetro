@@ -52,6 +52,28 @@
             right: 0.5rem;
             font-size: 1.2rem;
         }
+        .covered-ticket {
+            opacity: 0.6;
+            position: relative;
+        }
+        .covered-ticket::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #10B981;
+            transform: translateY(-50%);
+        }
+        .covered-badge {
+            background-color: #10B981;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
         .phase-indicator {
             transition: all 0.3s;
         }
@@ -505,15 +527,20 @@
             const canVote = state.phase === 'VOTING';
             const hasVoted = ticket.voter_ids && ticket.voter_ids.includes(userId);
             const ticketColor = getTicketColor(ticket.author_id);
+            const canMarkCovered = ['DISCUSSION', 'SUMMARY'].includes(state.phase) && state.isModeratorOrOwner;
+            const isCovered = ticket.covered || false;
             
             let html = `
                 <div class="mb-4">
-                    <div class="ticket ${hasChildren ? 'parent-ticket' : ''} ${ticketColor.bg} border ${ticketColor.border} rounded-md p-4 ${isDraggable ? 'draggable' : ''}" 
+                    <div class="ticket ${hasChildren ? 'parent-ticket' : ''} ${isCovered ? 'covered-ticket' : ''} ${ticketColor.bg} border ${ticketColor.border} rounded-md p-4 ${isDraggable ? 'draggable' : ''}" 
                          data-ticket-id="${ticket.id}"
                          ${isDraggable ? 'draggable="true"' : ''}>
                         <p class="text-gray-800 mb-3">${escapeHtml(ticket.content)}</p>
                         <div class="flex justify-between items-center text-sm">
-                            <span class="text-gray-500">${getParticipantName(ticket.author_id)}</span>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-gray-500">${getParticipantName(ticket.author_id)}</span>
+                                ${isCovered ? '<span class="covered-badge">✓ Covered</span>' : ''}
+                            </div>
                             <div class="flex items-center space-x-2">
                                 ${canVote ? `
                                     <button class="vote-btn ${hasVoted ? 'text-primary' : 'text-gray-400'} hover:text-primary" 
@@ -524,6 +551,15 @@
                                         </svg>
                                     </button>
                                 ` : `<span class="text-gray-400">${ticket.votes || 0} votes</span>`}
+                                ${canMarkCovered ? `
+                                    <button class="${isCovered ? 'text-green-600' : 'text-gray-400'} hover:text-green-600" 
+                                            onclick="toggleCovered('${ticket.id}', ${isCovered})"
+                                            title="${isCovered ? 'Mark as not covered' : 'Mark as covered/discussed'}">
+                                        <svg class="w-5 h-5" fill="${isCovered ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    </button>
+                                ` : ''}
                                 ${canEdit && state.phase === 'TICKETING' ? `
                                     <button class="text-red-400 hover:text-red-600" onclick="deleteTicket('${ticket.id}')">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -947,6 +983,16 @@
             } else {
                 send({ type: 'vote', payload: { ticket_id: ticketId } });
             }
+        };
+        
+        window.toggleCovered = function(ticketId, isCovered) {
+            send({ 
+                type: 'mark_covered', 
+                payload: { 
+                    ticket_id: ticketId,
+                    covered: !isCovered
+                } 
+            });
         };
         
         window.deleteTicket = function(ticketId) {

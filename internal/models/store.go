@@ -102,7 +102,7 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 
 	// Get tickets
 	ticketRows, err := s.db.Query(`
-		SELECT id, content, author_id, deduplication_ticket_id, votes, voter_ids, created_at
+		SELECT id, content, author_id, deduplication_ticket_id, votes, voter_ids, covered, created_at
 		FROM tickets WHERE room_id = $1
 	`, id)
 	if err != nil {
@@ -114,7 +114,7 @@ func (s *RoomStore) Get(id string) (*Room, bool) {
 		var t Ticket
 		var deduplicationTicketID sql.NullString
 		var voterIDsJSON []byte
-		err := ticketRows.Scan(&t.ID, &t.Content, &t.AuthorID, &deduplicationTicketID, &t.Votes, &voterIDsJSON, &t.CreatedAt)
+		err := ticketRows.Scan(&t.ID, &t.Content, &t.AuthorID, &deduplicationTicketID, &t.Votes, &voterIDsJSON, &t.Covered, &t.CreatedAt)
 		if err != nil {
 			return nil, false
 		}
@@ -294,9 +294,9 @@ func (s *RoomStore) Update(room *Room) error {
 			return err
 		}
 		_, err = tx.Exec(`
-			INSERT INTO tickets (id, room_id, content, author_id, deduplication_ticket_id, votes, voter_ids, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		`, ticket.ID, room.ID, ticket.Content, ticket.AuthorID, ticket.DeduplicationTicketID, ticket.Votes, voterIDsJSON, ticket.CreatedAt)
+			INSERT INTO tickets (id, room_id, content, author_id, deduplication_ticket_id, votes, voter_ids, covered, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`, ticket.ID, room.ID, ticket.Content, ticket.AuthorID, ticket.DeduplicationTicketID, ticket.Votes, voterIDsJSON, ticket.Covered, ticket.CreatedAt)
 		if err != nil {
 			room.RUnlock()
 			return err

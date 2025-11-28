@@ -47,6 +47,7 @@ type Ticket struct {
 	DeduplicationTicketID *string   `json:"deduplication_ticket_id,omitempty"`
 	Votes                 int       `json:"votes"`
 	VoterIDs              []string  `json:"voter_ids"`
+	Covered               bool      `json:"covered"`
 	CreatedAt             time.Time `json:"created_at"`
 }
 

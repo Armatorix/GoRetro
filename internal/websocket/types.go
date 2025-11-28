@@ -20,6 +20,7 @@ const (
 	MsgUnvote       MessageType = "unvote"
 	MsgAddAction    MessageType = "add_action"
 	MsgDeleteAction MessageType = "delete_action"
+	MsgMarkCovered  MessageType = "mark_covered"
 	MsgSetPhase     MessageType = "set_phase"
 	MsgSetRole      MessageType = "set_role"
 	MsgRemoveUser   MessageType = "remove_user"

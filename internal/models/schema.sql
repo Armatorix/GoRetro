@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     deduplication_ticket_id VARCHAR(255),
     votes INTEGER NOT NULL DEFAULT 0,
     voter_ids JSONB NOT NULL DEFAULT '[]',
+    covered BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP NOT NULL,
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );

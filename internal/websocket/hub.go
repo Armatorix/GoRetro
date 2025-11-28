@@ -142,6 +142,8 @@ func (h *Hub) HandleMessage(client *Client, msg []byte) {
 		h.handleAddAction(client, room, message.Payload)
 	case MsgDeleteAction:
 		h.handleDeleteAction(client, room, message.Payload)
+	case MsgMarkCovered:
+		h.handleMarkCovered(client, room, message.Payload)
 	case MsgSetPhase:
 		h.handleSetPhase(client, room, message.Payload)
 	case MsgSetRole:
@@ -434,6 +436,55 @@ func (h *Hub) handleDeleteAction(client *Client, room *models.Room, payload map[
 		Type: MsgActionDeleted,
 		Payload: map[string]any{
 			"action_id": actionID,
+		},
+	}
+	responseBytes, _ := json.Marshal(response)
+	h.BroadcastToRoom(room.ID, responseBytes)
+}
+
+func (h *Hub) handleMarkCovered(client *Client, room *models.Room, payload map[string]any) {
+	if room.Phase != models.PhaseDiscussion && room.Phase != models.PhaseSummary {
+		h.sendError(client, "Can only mark tickets as covered during discussion or summary phase")
+		return
+	}
+
+	if !room.IsModeratorOrOwner(client.ID) {
+		h.sendError(client, "Only moderators can mark tickets as covered")
+		return
+	}
+
+	ticketID, ok := payload["ticket_id"].(string)
+	if !ok || ticketID == "" {
+		h.sendError(client, "Ticket ID is required")
+		return
+	}
+
+	covered, ok := payload["covered"].(bool)
+	if !ok {
+		h.sendError(client, "Covered status is required")
+		return
+	}
+
+	ticket, exists := room.GetTicket(ticketID)
+	if !exists {
+		h.sendError(client, "Ticket not found")
+		return
+	}
+
+	room.Lock()
+	ticket.Covered = covered
+	room.Unlock()
+
+	// Persist to database
+	if err := h.store.Update(room); err != nil {
+		h.sendError(client, "Failed to update ticket covered status")
+		return
+	}
+
+	response := Message{
+		Type: MsgTicketUpdated,
+		Payload: map[string]any{
+			"ticket": ticket,
 		},
 	}
 	responseBytes, _ := json.Marshal(response)
