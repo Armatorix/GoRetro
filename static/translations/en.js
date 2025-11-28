@@ -52,6 +52,8 @@ window.translations.en = {
     room: {
         pageTitle: "{roomName} - GoRetro",
         shareLink: "Share link:",
+        linkCopied: "Room link copied to clipboard!",
+        linkCopyFailed: "Failed to copy link",
         connectionStatus: {
             connecting: "Connecting...",
             connected: "Connected",

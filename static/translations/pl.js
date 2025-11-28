@@ -52,6 +52,8 @@ window.translations.pl = {
     room: {
         pageTitle: "{roomName} - GoRetro",
         shareLink: "Link do udostępnienia:",
+        linkCopied: "Link do pokoju skopiowany do schowka!",
+        linkCopyFailed: "Nie udało się skopiować linku",
         connectionStatus: {
             connecting: "Łączenie...",
             connected: "Połączono",

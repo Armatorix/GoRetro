@@ -129,12 +129,15 @@
             
             <!-- Room Header -->
             <div class="bg-white rounded-lg shadow p-4 mb-6">
-                <div class="flex justify-between items-center">
-                    <div>
+                <div class="flex align-center justify-between items-center">
+                    <div class="flex-1">
                         <h1 class="text-2xl font-bold text-gray-800">{{.Room.Name}}</h1>
-                        <p class="text-sm text-gray-500"><span data-i18n="room.shareLink">Share link:</span> <span class="font-mono bg-gray-100 px-2 py-1 rounded" id="room-link"></span></p>
+                        <div class="flex items-center space-x-2 mt-1">
+                            <span class="text-sm text-gray-500" data-i18n="room.shareLink">Share link:</span>
+                            <span class="font-mono bg-gray-100 hover:bg-primary hover:text-white px-2 py-1 rounded text-sm cursor-pointer transition-colors" id="room-link" title="Click to copy"></span>
+                        </div>
                     </div>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center">
                         <span id="connection-status" class="text-sm px-2 py-1 rounded bg-gray-200 text-gray-600">Connecting...</span>
                     </div>
                 </div>
@@ -272,7 +275,19 @@
         const userId = roomApp.dataset.userId;
         
         // Set room link
-        document.getElementById('room-link').textContent = window.location.href;
+        const roomLinkElement = document.getElementById('room-link');
+        roomLinkElement.textContent = window.location.href;
+        
+        // Copy room link on click
+        roomLinkElement.addEventListener('click', function() {
+            const roomUrl = window.location.href;
+            navigator.clipboard.writeText(roomUrl).then(function() {
+                showToast(window.i18n.t('room.linkCopied'), 'success');
+            }).catch(function(err) {
+                console.error('Failed to copy:', err);
+                showToast(window.i18n.t('room.linkCopyFailed'), 'error');
+            });
+        });
         
         // Update page title with room name
         function updatePageTitle() {
@@ -510,10 +525,19 @@
             }
         }
         
-        function showToast(message) {
+        function showToast(message, type = 'error') {
             const toast = document.getElementById('toast');
             const toastMessage = document.getElementById('toast-message');
             toastMessage.textContent = message;
+            
+            // Update toast color based on type
+            toast.classList.remove('bg-red-500', 'bg-green-500');
+            if (type === 'success') {
+                toast.classList.add('bg-green-500');
+            } else {
+                toast.classList.add('bg-red-500');
+            }
+            
             toast.classList.remove('translate-y-full', 'opacity-0');
             setTimeout(() => {
                 toast.classList.add('translate-y-full', 'opacity-0');
