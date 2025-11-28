@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n-title="room.pageTitle">{{.Room.Name}} - GoRetro</title>
+    <title>{{.Room.Name}} - GoRetro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/static/translations/en.js"></script>
     <script src="/static/translations/pl.js"></script>
@@ -102,7 +102,7 @@
     {{template "nav" .}}
     
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div id="room-app" data-room-id="{{.Room.ID}}" data-user-id="{{.User.ID}}">
+        <div id="room-app" data-room-id="{{.Room.ID}}" data-user-id="{{.User.ID}}" data-room-name="{{.Room.Name}}">
             <!-- Pending Approval Overlay -->
             <div id="pending-overlay" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center">
                 <div class="bg-white rounded-lg shadow-xl p-8 max-w-md mx-4 text-center">
@@ -264,8 +264,18 @@
         // Set room link
         document.getElementById('room-link').textContent = window.location.href;
         
+        // Update page title with room name
+        function updatePageTitle() {
+            const roomName = roomApp.dataset.roomName;
+            document.title = window.i18n.t('room.pageTitle', { roomName: roomName });
+        }
+        
+        // Initial title update
+        updatePageTitle();
+        
         // Listen for language changes and re-render
         window.addEventListener('languageChanged', function() {
+            updatePageTitle();
             if (state.tickets && Object.keys(state.tickets).length > 0) {
                 renderAll();
             }
