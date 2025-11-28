@@ -1,6 +1,8 @@
-# GoRetro
-
-A retrospective tool for agile teams.
+<div align="center">
+  <img src="static/icon.png" alt="GoRetro Logo" width="128" height="128">
+  <h1>GoRetro</h1>
+  <p>A retrospective tool for agile teams.</p>
+</div>
 
 ## ⚠️ Authentication Requirement
 
