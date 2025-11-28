@@ -115,6 +115,8 @@ window.translations.pl = {
             teamContextLabel: "Kontekst zespołu (opcjonalnie):",
             teamContextPlaceholder: "Dodaj kontekst o zespole, stosie technologicznym lub ograniczeniach...",
             teamContextHelp: "To pomoże AI zasugerować bardziej trafne działania dla Twojej sytuacji.",
+            sarcasticMode: "🎭 Tryb Sarkastyczny",
+            sarcasticModeHelp: "(Niech będzie śmiesznie!)",
             generate: "Generuj Zadania",
             autoProposeComplete: "AI zasugerowało {count} zadań!"
         },

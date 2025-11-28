@@ -242,6 +242,12 @@
                                     <textarea id="team-context" rows="3" data-i18n="room.actions.teamContextPlaceholder" placeholder="Add context about your team, tech stack, or constraints..." 
                                               class="w-full border rounded-md p-2 mb-2 focus:border-purple-500 focus:ring-purple-500"></textarea>
                                     <p class="text-xs text-gray-600 mb-3" data-i18n="room.actions.teamContextHelp">This helps AI suggest more relevant actions for your specific situation.</p>
+                                    
+                                    <div class="flex items-center mb-3 p-2 bg-white rounded border">
+                                        <input type="checkbox" id="sarcastic-mode" class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500">
+                                        <label for="sarcastic-mode" class="ml-2 text-sm text-gray-700" data-i18n="room.actions.sarcasticMode">🎭 Sarcastic Mode</label>
+                                        <span class="ml-2 text-xs text-gray-500" data-i18n="room.actions.sarcasticModeHelp">(Make it fun!)</span>
+                                    </div>
                                     <div class="flex justify-end space-x-2">
                                         <button id="cancel-auto-propose" class="px-3 py-1.5 text-gray-600 hover:text-gray-800 text-sm" data-i18n="room.actions.cancel">Cancel</button>
                                         <button id="submit-auto-propose" class="bg-purple-600 text-white px-3 py-1.5 rounded-md hover:bg-purple-700 text-sm" data-i18n="room.actions.generate">Generate Actions</button>
@@ -796,6 +802,7 @@
             // Hide the form
             document.getElementById('auto-propose-form').classList.add('hidden');
             document.getElementById('team-context').value = '';
+            document.getElementById('sarcastic-mode').checked = false;
             
             const message = window.i18n.t('room.actions.autoProposeComplete', { 
                 count: payload.actions_created 
@@ -1527,14 +1534,19 @@
         document.getElementById('cancel-auto-propose').onclick = function() {
             document.getElementById('auto-propose-form').classList.add('hidden');
             document.getElementById('team-context').value = '';
+            document.getElementById('sarcastic-mode').checked = false;
         };
         
         document.getElementById('submit-auto-propose').onclick = function() {
             const teamContext = document.getElementById('team-context').value.trim();
+            const sarcastic = document.getElementById('sarcastic-mode').checked;
+            const language = window.i18n.currentLanguage || 'en';
             send({ 
                 type: 'auto_propose_actions', 
                 payload: { 
-                    team_context: teamContext 
+                    team_context: teamContext,
+                    language: language,
+                    sarcastic: sarcastic
                 } 
             });
         };

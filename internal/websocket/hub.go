@@ -1051,10 +1051,20 @@ func (h *Hub) handleAutoProposeActions(client *Client, room *models.Room, payloa
 		return
 	}
 
-	// Get team context from payload (optional)
+	// Get parameters from payload
 	teamContext := ""
 	if ctx, ok := payload["team_context"].(string); ok {
 		teamContext = ctx
+	}
+
+	language := "en"
+	if lang, ok := payload["language"].(string); ok {
+		language = lang
+	}
+
+	sarcastic := false
+	if sarc, ok := payload["sarcastic"].(bool); ok {
+		sarcastic = sarc
 	}
 
 	// Send progress message
@@ -1076,7 +1086,7 @@ func (h *Hub) handleAutoProposeActions(client *Client, room *models.Room, payloa
 	room.RUnlock()
 
 	// Call AI service to get action suggestions
-	actionResponse, err := h.chatCompletion.ProposeActions(tickets, teamContext)
+	actionResponse, err := h.chatCompletion.ProposeActions(tickets, teamContext, language, sarcastic)
 	if err != nil {
 		log.Printf("Auto-propose actions failed: %v", err)
 		h.sendError(client, fmt.Sprintf("Auto-propose actions failed: %v", err))

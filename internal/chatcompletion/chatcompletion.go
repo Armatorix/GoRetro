@@ -186,13 +186,13 @@ type AutoProposeActionsResponse struct {
 }
 
 // ProposeActions uses AI to suggest action items based on tickets
-func (s *Service) ProposeActions(tickets map[string]*models.Ticket, teamContext string) (*AutoProposeActionsResponse, error) {
+func (s *Service) ProposeActions(tickets map[string]*models.Ticket, teamContext, language string, sarcastic bool) (*AutoProposeActionsResponse, error) {
 	if !s.IsConfigured() {
 		return nil, fmt.Errorf("chat completion service not configured")
 	}
 
 	// Build the prompt with ticket information
-	prompt := s.buildActionProposalPrompt(tickets, teamContext)
+	prompt := s.buildActionProposalPrompt(tickets, teamContext, language, sarcastic)
 
 	// Create the chat completion request
 	reqBody := ChatCompletionRequest{
@@ -255,7 +255,7 @@ func (s *Service) ProposeActions(tickets map[string]*models.Ticket, teamContext 
 }
 
 // buildActionProposalPrompt creates a prompt for the AI to suggest action items
-func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, teamContext string) string {
+func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, teamContext, language string, sarcastic bool) string {
 	prompt := "Here are the retrospective tickets from the team:\n\n"
 
 	for id, ticket := range tickets {
@@ -270,7 +270,17 @@ func (s *Service) buildActionProposalPrompt(tickets map[string]*models.Ticket, t
 		prompt += fmt.Sprintf("\nAdditional team context:\n%s\n\n", teamContext)
 	}
 
-	prompt += `Analyze these retrospective tickets and suggest concrete, actionable items that the team can implement to address the feedback and issues raised. 
+	languageInstruction := ""
+	if language != "" && language != "en" {
+		languageInstruction = fmt.Sprintf(" IMPORTANT: Respond in %s language.", language)
+	}
+
+	toneInstruction := ""
+	if sarcastic {
+		toneInstruction = " Use a sarcastic, humorous, and slightly memish tone in your action items. Make them entertaining while still being actionable and useful."
+	}
+
+	prompt += fmt.Sprintf(`Please analyze these retrospective tickets and suggest concrete, actionable items that the team can implement to address the feedback and issues raised.%s%s`, languageInstruction, toneInstruction) + `
 
 For each action item:
 1. Make it specific, measurable, and achievable

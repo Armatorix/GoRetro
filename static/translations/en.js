@@ -115,6 +115,8 @@ window.translations.en = {
             teamContextLabel: "Team Context (optional):",
             teamContextPlaceholder: "Add context about your team, tech stack, or constraints...",
             teamContextHelp: "This helps AI suggest more relevant actions for your specific situation.",
+            sarcasticMode: "🎭 Sarcastic/Meme Mode",
+            sarcasticModeHelp: "(Make it fun!)",
             generate: "Generate Actions",
             autoProposeComplete: "AI suggested {count} action items!"
         },
